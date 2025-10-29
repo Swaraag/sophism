@@ -1,5 +1,13 @@
-from fastapi import FastAPI, WebSocket
+# overlapping audio need to read this article: https://github.com/pyannote/pyannote-audio/discussions/1157
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+import logging
+
+## LOGGING SETUP
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("main")
+
 
 ## FAST API SETUP
 app = FastAPI()
@@ -20,6 +28,17 @@ transcript = [{}]
 fallacies = [{}]
 # speaker format is ["speaker1", "speaker2"]
 speakers = []
+# active websocket clients
+connected_clients = set()
+
+# broadcasts when transcript or fallacies is updated
+async def broadcast(transcript, fallacies):
+    for client in connected_clients:
+        try:
+            await client.send_json({"transcript": transcript, "fallacies": fallacies})
+        except WebSocketDisconnect:
+            connected_clients.discard(client)
+            logger.info("Client disconnected.")
 
 @app.get("/")
 async def root():
@@ -39,13 +58,16 @@ async def debate_state():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
+    connected_clients.add(websocket)
     try:
         while True:
             data = await websocket.receive_bytes()
             # Process audio data here
-            print(f"Received {len(data)} bytes of audio")
+            logger.info(f"Received {len(data)} bytes of audio")
             # Send response back
-            await websocket.send_json({"status": "received"})
+            await websocket.send_json({"status": "audio received"})
+    except WebSocketDisconnect:
+        connected_clients.remove(websocket)
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
 
