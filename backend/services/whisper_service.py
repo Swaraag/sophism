@@ -1,17 +1,19 @@
 import whisper
 from utils import audio_utils
 
-model = None
+whisper_model = None
 
-async def init_model():
-    global model
-    model = whisper.load_model("base")
+async def init_whisper():
+    '''Initializes the whisper model.'''
+    global whisper_model
+    whisper_model = whisper.load_model("base")
 
 async def transcribe_audio(audio_bytes) -> str:
-    if model is None:
+    '''Transcribes the audio, attaching different speakers to each section'''
+    if whisper_model is None:
             raise Exception("Whisper model is not initialized")
     
     # call function within audio_utils.py that converts the audio_bytes into the right format for whisper
-    transcribed_audio = model.transcribe(audio_bytes)
+    transcribed_audio = whisper_model.transcribe(audio_bytes)
     return transcribed_audio["text"]
 
