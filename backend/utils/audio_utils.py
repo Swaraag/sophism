@@ -17,5 +17,6 @@ def resample_audio(input_audio, orig_sr=48000, target_sr=16000):
 def process_audio_bytes(pcm_bytes):
     '''Combines both functions into one step that will be used in main.py'''
     audio_array = bytes_to_audio_array(pcm_bytes)
-    resampled = resample_audio(audio_array, orig_sr, target_sr)
+    resampled = resample_audio(audio_array, 48000, 16000)
+    # returns 16000 khz numpy
     return resampled
