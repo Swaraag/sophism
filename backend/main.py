@@ -1,5 +1,5 @@
 # overlapping audio need to read this article: https://github.com/pyannote/pyannote-audio/discussions/1157
-
+from services import diart_service
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -23,9 +23,9 @@ app.add_middleware(
 
 ## GLOBAL VARIABLES
 # transcript format is [{"diagID": 0, "speaker": Bob, "diag": "What's up?"}]
-transcript = [{}]
-# fallacy format is [{{"speaker": "Bob", "fallacy_type": "ad hominem", "diag": "You're just stupid", "explanation": "Attacks the person rather than their argument", "confidence": "high"}]
-fallacies = [{}]
+transcript = []
+# fallacy format is [{"speaker": "Bob", "fallacy_type": "ad hominem", "diag": "You're just stupid", "explanation": "Attacks the person rather than their argument", "confidence": "high"}]
+fallacies = []
 # speaker format is ["speaker1", "speaker2"]
 speakers = []
 # active websocket clients
@@ -71,3 +71,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"Error: {e}")
 
+### DIART WORK
+@app.on_event("startup")
+async def startup():
+    await diart_service.initialize_diart()

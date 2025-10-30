@@ -1,9 +1,18 @@
 from diart import SpeakerDiarization
-from diart.sources import WebSocketAudioSource
-from diart.inference import StreamingInference
 
-pipeline = SpeakerDiarization()
-source = WebSocketAudioSource(pipeline.config.sample_rate, "localhost", 7007)
-inference = StreamingInference(pipeline, source)
-inference.attach_hooks(lambda ann_wav: source.send(ann_wav[0].to_rttm()))
-prediction = inference()
+pipeline = None
+
+async def initialize_diart():
+    global pipeline
+    try:
+        pipeline = SpeakerDiarization()
+        print("Successfully loaded Diart model.")
+    except Exception as e:
+        print(f"Error loading Diart: {e}")
+
+async def process_audio(audio_bytes):
+    if pipeline is None:
+        raise Exception("Diart pipeline not initialized.")
+    # speaker_segs = [{"speaker": "speaker1", "start": 0:00, "end": 0:25}, ...]
+    speaker_segs = []
+    return speaker_segs
