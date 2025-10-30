@@ -1,5 +1,6 @@
 # overlapping audio need to read this article: https://github.com/pyannote/pyannote-audio/discussions/1157
 from services import diart_service
+from services import whisper_service
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -74,4 +75,4 @@ async def websocket_endpoint(websocket: WebSocket):
 ### DIART WORK
 @app.on_event("startup")
 async def startup():
-    await diart_service.initialize_diart()
+    await diart_service.init_diart()
