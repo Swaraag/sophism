@@ -34,6 +34,7 @@ connected_clients = set()
 
 # broadcasts when transcript or fallacies is updated
 async def broadcast(transcript, fallacies):
+    '''For each connected client, sends the current transcript and fallacies'''
     for client in connected_clients:
         try:
             await client.send_json({"transcript": transcript, "fallacies": fallacies})
@@ -76,3 +77,5 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.on_event("startup")
 async def startup():
     await diart_service.init_diart()
+    await whisper_service.init_whisper()
+
