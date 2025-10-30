@@ -2,7 +2,7 @@ from diart import SpeakerDiarization
 
 pipeline = None
 
-async def initialize_diart():
+async def init_diart():
     global pipeline
     try:
         pipeline = SpeakerDiarization()
