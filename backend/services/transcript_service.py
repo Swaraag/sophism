@@ -19,7 +19,7 @@ def audio_to_transcript(pcm_bytes):
 
     # given the start and end stamps in segment, slice the audio in processed_bytes, and run transcribe_audio() on it
     final_transcript = []
-    for idx, segment in enumerate(speaker_segs):
+    for segment in speaker_segs:
         # starting/ending point as indices in the numpy array
         start = int(segment["start"]*16000)
         end = int(segment["end"]*16000)
