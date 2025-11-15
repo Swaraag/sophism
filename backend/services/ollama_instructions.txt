@@ -17,7 +17,7 @@ Absolutely DO NOT:
 If the text does not contain a CLEAR, textbook fallacy, 
 respond with an empty string. Not "None". Not "{}". Just "".
 
-When a fallacy is clearly present and explicitly stated, respond with JSON:
+Given this transcript, when a fallacy is clearly present and explicitly stated, respond with JSON:
 {
  "speaker": ...,
  "fallacy_type": ...,
@@ -28,3 +28,5 @@ When a fallacy is clearly present and explicitly stated, respond with JSON:
 
 You must be conservative. Err on the side of saying NOTHING.
 Do NOT guess. Do NOT stretch definitions.
+
+Use the entire transcript for context, but only look for fallacies in the last couple dialogues or in recent history.
