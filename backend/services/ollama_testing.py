@@ -1,5 +1,3 @@
-import ollama
-import json
 
 # messages = [
 #         {'role': 'system', 'content': 'You are an expert on logical fallacies and debate. '
@@ -13,24 +11,29 @@ import json
 #         "Speaker 1 (9.5–14s): The long-term savings and environmental benefits outweigh the upfront costs, and improved transit could boost the economy by increasing mobility and job access."}
 #         ]
 
-with open("backend/services/ollama_instructions.txt", "r") as f:
-    ollama_instructions = f.read()
-with open("backend/services/sample_debate_transcript.txt", "r") as f:
-    debate_transcript = f.read()
-
 # messages = [
 #         {'role': 'system', 'content': ollama_instructions},
 #         {'role': 'user', 'content': "Speaker 1 (0–5s): I believe implementing a four-day workweek could improve employee well-being and productivity, since studies show people accomplish more with better rest."
 #         "Speaker 2 (5–9.5s): That’s a fair point, but some industries might struggle with reduced hours—customer service and healthcare, for example, need continuous coverage."
 #         "Speaker 1 (9.5–14s): True, but we could pilot the model in sectors where it's more feasible first, then assess results before expanding it more broadly."}
 #         ]
+import ollama
+import json
+
+with open("backend/services/ollama_instructions.txt", "r") as f:
+    ollama_instructions = f.read()
+with open("backend/services/sample_debate_transcript.txt", "r") as f:
+    debate_transcript = f.read()
+
+
 messages = [
         {'role': 'system', 'content': ollama_instructions},
         {'role': 'user', 'content': debate_transcript}
         ]
 
-response = ollama.chat(model='llama3.1:8b', messages=messages)
+response = ollama.chat(model='llama3.1:8b', messages=messages, options={'temperature': 0})
 assistant_response = response['message']['content']
+#print(assistant_response)
 response_dict = json.loads(assistant_response)
 
 print(type(response_dict))
