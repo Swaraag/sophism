@@ -1,6 +1,17 @@
 import ollama
 import json
 
+# OLLAMA INSTRUCTIONS
+try:
+    with open("backend/services/ollama_instructions.txt", "r") as f:
+        ollama_instructions = f.read()
+except FileNotFoundError:
+    print("Error: The file backend/services/ollama_instructions.txt was not found.")
+except IOError as e:
+    print(f"Error reading file: {e}")
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")
+
 async def init_ollama():
     '''Verify the Ollama model is running and working properly.'''
     try:
@@ -11,24 +22,55 @@ async def init_ollama():
     except ollama.ResponseError as e:
         raise Exception(f"Ollama error: {e}")
     
-async def detect_fallacies(transcript, fallacy_list):
+async def detect_fallacies(transcript):
     # transcript format: transcript = [{"speaker": "speaker1", "start": 0:00, "end": 0:25, "transcript": "Hi my name is..."}, ...]
+    fallacy_list = []
+    if 'ollama_instructions' not in globals():
+        print("Ollama instructions was not initialized properly.")
+        return fallacy_list
+  
 
     string_transcript = ""
+    if not transcript:
+        return fallacy_list
+    
     for dialogue in transcript:
-        string_transcript += f"{dialogue['speaker']} ({dialogue['start']} - {dialogue['end']}s): {dialogue['transcript']}\n"
+        try:
+            string_transcript += f"{dialogue['speaker']} ({dialogue['start']} - {dialogue['end']}s): {dialogue['transcript']}\n"
+        except KeyError:
+            print(f"Invalid dialogue format: {dialogue}")
+
 
     messages = [
-        {'role': 'system', 'content': 'You are an expert on logical fallacies and debate. '
-        'Given this transcript, try to detect fallacies from either speaker. If no fallacy is detected, then respond with nothing. '
-        'Do not try to respond with a fallacy if there is no fallacy detected.'
-        'If a fallacy is detected, respond with JSON that can be read as a Python dictionary that provides the speaker who committed the fallacy, the type of fallacy, '
-        'the statement which caused the fallacy, an explanation of why it is a fallacy, and a confidence level (between 0 and 1) for how likely it is to be a fallacy.'
-        'The names of the fields are "speaker", "fallacy_type", "statement", "explanation", "confidence".'
-        'Use the entire transcript for context, but only look for fallacies in the last couple dialogues or in relatively recent history.'},
-        {'role': 'user', 'content': string_transcript}
-        ]
-    
-    response = ollama.chat(model='llama3.1:8b', messages=messages)
-    json_format = json.loads(response["message"]["content"])
-    fallacy_list.append(json_format)
+            {'role': 'system', 'content': ollama_instructions},
+            {'role': 'user', 'content': string_transcript}
+            ]
+    try:
+        response = ollama.chat(model='llama3.1:8b', messages=messages, options={"temperature": 0})
+    except ollama.ResponseError as e:
+        print(f"Ollama ran into an error: {e}")
+        return fallacy_list
+    except Exception as e:
+        print(f"Unexpected Ollama error: {e}")
+
+    try:
+        json_response = json.loads(response["message"]["content"])
+    except json.JSONDecodeError:
+        print("JSON DECODE ERROR")
+        return fallacy_list
+    if not isinstance(json_response, list):
+        if isinstance(json_response, dict):
+            json_response = [json_response]
+        else:
+            print("JSON RESPONSE ISNT LIST")
+            return fallacy_list
+    for fallacy in json_response:
+        if check_fallacy_format(fallacy):
+            fallacy_list.append(fallacy)
+    return fallacy_list
+
+def check_fallacy_format(fallacy):
+    if fallacy is not None and fallacy != "" and isinstance(fallacy, dict):
+        if all(key in fallacy for key in ['speaker', 'fallacy_type', 'statement', 'explanation', 'confidence']):
+            return True
+    return False

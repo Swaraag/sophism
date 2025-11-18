@@ -27,7 +27,7 @@ However, only output multiple fallacies if they are distinct.
  "fallacy_type": ...,
  "statement": ...,
  "explanation": ...,
- "confidence": ...
+ "confidence": ... (between 0 and 1)
 }
 ]
 
