@@ -2,17 +2,29 @@
 from services import diart_service
 from services import whisper_service
 from services import ollama_service
+from services import transcript_service
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+from contextlib import asynccontextmanager
+import asyncio
+import time
 
 ## LOGGING SETUP
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("main")
 
+# loading startup services
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await diart_service.init_diart()
+    await whisper_service.init_whisper()
+    await ollama_service.init_ollama()
+    # yield to distinguish between startup and shutdown
+    yield
 
 ## FAST API SETUP
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 # in order to allow requests between the frontend and backend
 # allow_origins=["https://yourdomain.com"] for production
 app.add_middleware(
@@ -23,25 +35,18 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-## GLOBAL VARIABLES
-# transcript format is [{"diagID": 0, "speaker": Bob, "diag": "What's up?"}]
-transcript = []
-# fallacy format is [{"speaker": "Bob", "fallacy_type": "ad hominem", "diag": "You're just stupid", "explanation": "Attacks the person rather than their argument", "confidence": "high"}]
-fallacies = []
-# speaker format is ["speaker1", "speaker2"]
-speakers = []
 # active websocket clients
 connected_clients = set()
 
 # broadcasts when transcript or fallacies is updated
-async def broadcast(transcript, fallacies):
-    '''For each connected client, sends the current transcript and fallacies'''
-    for client in connected_clients:
-        try:
-            await client.send_json({"transcript": transcript, "fallacies": fallacies})
-        except WebSocketDisconnect:
-            connected_clients.discard(client)
-            logger.info("Client disconnected.")
+# async def broadcast(transcript, fallacies):
+#     '''For each connected client, sends the current transcript and fallacies'''
+#     for client in connected_clients:
+#         try:
+#             await client.send_json({"transcript": transcript, "fallacies": fallacies})
+#         except WebSocketDisconnect:
+#             connected_clients.discard(client)
+#             logger.info("Client disconnected.")
 
 @app.get("/")
 async def root():
@@ -49,8 +54,6 @@ async def root():
 
 @app.post("/api/debate/start")
 async def start_debate():
-    transcript = []
-    fallacies = []
     return {"status": "Debate started"}
 
 @app.get("/api/debate/state")
@@ -62,21 +65,51 @@ async def debate_state():
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     connected_clients.add(websocket)
+
+    # buffer of bytes that holds the incoming websocket information
+    bytes_buffer = bytes()
+    # transcript format is [{"diagID": 0, "speaker": Bob, "diag": "What's up?"}]
+    transcript = []
+    # fallacy format is [{"speaker": "Bob", "fallacy_type": "ad hominem", "diag": "You're just stupid", "explanation": "Attacks the person rather than their argument", "confidence": "high"}]
+    fallacies = []
+    # speaker format is ["speaker1", "speaker2"]
+    speakers = []
+    # current time
+    last_processed_time = time.time()
+
     try:
         while True:
-            data = await websocket.receive_bytes()
-            # Process audio data here
-            logger.info(f"Received {len(data)} bytes of audio")
-            # Send response back
-            await websocket.send_json({"status": "audio received"})
+            try:
+                data = await asyncio.wait_for(
+                    websocket.receive_bytes(), 
+                    timeout=0.1
+                )
+                logger.info(f"Received {len(data)} bytes of audio")
+                bytes_buffer += data
+            except asyncio.TimeoutError:
+                pass
+
+            current_time = time.time()
+            elapsed_time = current_time - last_processed_time
+
+            if len(bytes_buffer) > 144000 or elapsed_time >= 15:
+                if len(bytes_buffer) > 0:
+                    transcript_seg = await transcript_service.audio_to_transcript(bytes_buffer)
+                    transcript.extend(transcript_seg)
+                    detected_fallacies = await ollama_service.detect_fallacies(transcript)
+                    if len(detected_fallacies) > 0:
+                        fallacies.extend(detected_fallacies)
+                    await websocket.send_json({"transcript": transcript, "fallacies": fallacies})
+
+                    # reset the bytes array
+                    bytes_buffer = bytes()
+                    # reset the last processed time
+                last_processed_time = current_time
+
     except WebSocketDisconnect:
         connected_clients.remove(websocket)
     except Exception as e:
         logger.error(f"Error: {e}")
+    finally:
+        await websocket.close()
 
-### DIART WORK
-@app.on_event("startup")
-async def startup():
-    await diart_service.init_diart()
-    await whisper_service.init_whisper()
-    await ollama_service.init_ollama()
