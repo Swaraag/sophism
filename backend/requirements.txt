@@ -3,7 +3,6 @@ uvicorn[standard]
 python-dotenv
 aiofiles
 websockets
-diart
 openai-whisper
 python-multipart
 httpx

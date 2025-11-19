@@ -1,7 +1,3 @@
-from diart import SpeakerDiarization
-from diart.sources import WebSocketAudioSource
-from diart.inference import StreamingInference
-
 from pyannote.audio import Pipeline
 import torch
 from dotenv import load_dotenv
@@ -34,14 +30,18 @@ async def process_audio(audio_bytes):
     if pipeline is None:
         raise Exception("Pyannote-audio pipeline not initialized.")
     speaker_segs = []
-    torch_tensor = torch.from_numpy(audio_bytes).float()
-    torch_tensor = torch_tensor.unsqueeze(0).unsqueeze(0)
-    with ProgressHook() as hook:
-        diarization = pipeline({"waveform": torch_tensor, "sample_rate": 16000}, hook=hook)
+    try:
+        torch_tensor = torch.from_numpy(audio_bytes).float()
+        torch_tensor = torch_tensor.unsqueeze(0).unsqueeze(0)
+        with ProgressHook() as hook:
+            diarization = pipeline({"waveform": torch_tensor, "sample_rate": 16000}, hook=hook)
 
-    for turn, _, speaker in diarization.itertracks(yield_label=True):
-        speaker_segs.append({"speaker": speaker, "start": turn.start, "end": turn.end})
+        for turn, _, speaker in diarization.itertracks(yield_label=True):
+            speaker_segs.append({"speaker": speaker, "start": turn.start, "end": turn.end})
 
-    # speaker_segs = [{"speaker": "speaker1", "start": 0:00, "end": 0:25}, ...]
-    
-    return speaker_segs
+        # speaker_segs = [{"speaker": "speaker1", "start": 0:00, "end": 0:25}, ...]
+        
+        return speaker_segs
+    except Exception as e:
+        print(f"Error processing audio: {e}")
+        return []

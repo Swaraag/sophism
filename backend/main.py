@@ -1,5 +1,5 @@
 # overlapping audio need to read this article: https://github.com/pyannote/pyannote-audio/discussions/1157
-from backend.services import pyannote_service
+from services import pyannote_service
 from services import whisper_service
 from services import ollama_service
 from services import transcript_service
@@ -56,10 +56,6 @@ async def root():
 async def start_debate():
     return {"status": "Debate started"}
 
-@app.get("/api/debate/state")
-async def debate_state():
-    # maybe need to add more 
-    return {"transcript": transcript, "fallacies": fallacies}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
