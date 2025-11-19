@@ -1,5 +1,5 @@
 # overlapping audio need to read this article: https://github.com/pyannote/pyannote-audio/discussions/1157
-from services import diart_service
+from backend.services import pyannote_service
 from services import whisper_service
 from services import ollama_service
 from services import transcript_service
@@ -17,7 +17,7 @@ logger = logging.getLogger("main")
 # loading startup services
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await diart_service.init_diart()
+    await pyannote_service.init_pyannote()
     await whisper_service.init_whisper()
     await ollama_service.init_ollama()
     # yield to distinguish between startup and shutdown
@@ -101,9 +101,9 @@ async def websocket_endpoint(websocket: WebSocket):
                         fallacies.extend(detected_fallacies)
                     await websocket.send_json({"transcript": transcript, "fallacies": fallacies})
 
-                    # reset the bytes array
-                    bytes_buffer = bytes()
-                    # reset the last processed time
+                # reset the bytes array
+                bytes_buffer = bytes()
+                # reset the last processed time
                 last_processed_time = current_time
 
     except WebSocketDisconnect:
