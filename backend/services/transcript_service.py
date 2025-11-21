@@ -2,7 +2,7 @@ from utils import audio_utils
 from services import whisper_service
 from services import pyannote_service
 
-def audio_to_transcript(pcm_bytes):
+async def audio_to_transcript(pcm_bytes):
     '''Takes the speaker segment information and the transcribed audio and merges them'''
 
     # transcribed_audio is a numpy array of 16000 khz

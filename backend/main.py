@@ -97,5 +97,6 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"Error: {e}")
     finally:
-        await websocket.close()
+        if websocket.client_state.name != "DISCONNECTED": 
+            await websocket.close()
 

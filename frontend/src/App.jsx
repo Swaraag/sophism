@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
+import AudioCapture from './components/AudioCapture'
 
 function App() {
   const [transcript, updateTranscript] = useState([])
@@ -35,9 +36,7 @@ function App() {
     <>
       <h1>Sophism</h1>
       <div className="card">
-        <button>
-          Start a debate!
-        </button>
+        <AudioCapture websocketRef={ws}/>
       </div>
     </>
   )
