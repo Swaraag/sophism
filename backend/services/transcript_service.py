@@ -1,6 +1,6 @@
 from utils import audio_utils
 from services import whisper_service
-from services import diart_service
+from services import pyannote_service
 
 def audio_to_transcript(pcm_bytes):
     '''Takes the speaker segment information and the transcribed audio and merges them'''
@@ -9,7 +9,7 @@ def audio_to_transcript(pcm_bytes):
     processed_bytes = audio_utils.process_audio_bytes(pcm_bytes)
 
     # speaker_seg = [{"speaker": "speaker1", "start": 0:00, "end": 0:25}, ...]
-    speaker_segs = diart_service.process_audio(processed_bytes)
+    speaker_segs = pyannote_service.process_audio(processed_bytes)
 
     # returns whisper_model.transcribe(audio_bytes)
     #transcribed_audio = whisper_service.transcribe_audio(processed_bytes)

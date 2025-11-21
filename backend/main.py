@@ -38,16 +38,6 @@ app.add_middleware(
 # active websocket clients
 connected_clients = set()
 
-# broadcasts when transcript or fallacies is updated
-# async def broadcast(transcript, fallacies):
-#     '''For each connected client, sends the current transcript and fallacies'''
-#     for client in connected_clients:
-#         try:
-#             await client.send_json({"transcript": transcript, "fallacies": fallacies})
-#         except WebSocketDisconnect:
-#             connected_clients.discard(client)
-#             logger.info("Client disconnected.")
-
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
