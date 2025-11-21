@@ -31,12 +31,16 @@ async def detect_fallacies(transcript):
     if 'ollama_instructions' not in globals():
         print("Ollama instructions was not initialized properly.")
         return fallacy_list
-  
-
-    string_transcript = ""
+    
     if not transcript:
         return fallacy_list
+      
+    has_content = any(seg.get('transcript', '').strip() for seg in transcript)
+    if not has_content:
+        print("No transcript content to analyze")
+        return fallacy_list
     
+    string_transcript = ""
     for dialogue in transcript:
         try:
             string_transcript += f"{dialogue['speaker']} ({dialogue['start']} - {dialogue['end']}s): {dialogue['transcript']}\n"

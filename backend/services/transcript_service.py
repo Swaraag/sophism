@@ -26,6 +26,6 @@ async def audio_to_transcript(pcm_bytes):
         # starting/ending point as indices in the numpy array
         start = int(segment["start"]*16000)
         end = int(segment["end"]*16000)
-        segment["transcript"] = whisper_service.transcribe_audio(processed_bytes[start:end])
+        segment["transcript"] = await whisper_service.transcribe_audio(processed_bytes[start:end])
         final_transcript.append(segment)
     return final_transcript
