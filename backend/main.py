@@ -80,7 +80,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if len(bytes_buffer) > 144000 or elapsed_time >= 15:
                 if len(bytes_buffer) > 0:
+                    logger.info(f"Buffer first 100 bytes: {bytes_buffer[:100]}")
                     transcript_seg = await transcript_service.audio_to_transcript(bytes_buffer)
+                    logger.info(f"Transcript segments returned: {len(transcript_seg)}")  # ← Add this
+                    logger.info(f"Transcript content: {transcript_seg}")  # ← Add this
                     transcript.extend(transcript_seg)
                     detected_fallacies = await ollama_service.detect_fallacies(transcript)
                     if len(detected_fallacies) > 0:

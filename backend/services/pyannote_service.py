@@ -32,7 +32,7 @@ async def process_audio(audio_bytes):
     speaker_segs = []
     try:
         torch_tensor = torch.from_numpy(audio_bytes).float()
-        torch_tensor = torch_tensor.unsqueeze(0).unsqueeze(0)
+        torch_tensor = torch_tensor.unsqueeze(0)
         with ProgressHook() as hook:
             diarization = pipeline({"waveform": torch_tensor, "sample_rate": 16000}, hook=hook)
 

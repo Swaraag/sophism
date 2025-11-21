@@ -52,6 +52,7 @@ export default function AudioCapture({ websocketRef }) {
             recorderRef.current.stop()
             toggleRecording(false)
             streamRef.current.getTracks().forEach(track => track.stop())
+            console.log("Debate paused. Microphone stopped.")
         }
     }
 

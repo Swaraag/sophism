@@ -9,7 +9,10 @@ async def audio_to_transcript(pcm_bytes):
     processed_bytes = audio_utils.process_audio_bytes(pcm_bytes)
 
     # speaker_seg = [{"speaker": "speaker1", "start": 0:00, "end": 0:25}, ...]
-    speaker_segs = pyannote_service.process_audio(processed_bytes)
+    speaker_segs = await pyannote_service.process_audio(processed_bytes)
+
+    print(f"Pyannote found {len(speaker_segs)} speaker segments")  # ← Add this
+    print(f"Segments: {speaker_segs}")  # ← Add this
 
     # returns whisper_model.transcribe(audio_bytes)
     #transcribed_audio = whisper_service.transcribe_audio(processed_bytes)

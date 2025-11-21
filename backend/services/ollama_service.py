@@ -1,9 +1,12 @@
 import ollama
 import json
+import os
 
 # OLLAMA INSTRUCTIONS
+current_dir = os.path.dirname(__file__)
+ollama_instructions_path = os.path.join(current_dir, "ollama_instructions.txt")
 try:
-    with open("backend/services/ollama_instructions.txt", "r") as f:
+    with open(ollama_instructions_path, "r") as f:
         ollama_instructions = f.read()
 except FileNotFoundError:
     print("Error: The file backend/services/ollama_instructions.txt was not found.")
