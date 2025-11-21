@@ -1,33 +1,44 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
-/*
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>*/
-
 function App() {
-  const [count, setCount] = useState(0)
+  const [transcript, updateTranscript] = useState([])
+  const [fallacies, updateFallacies] = useState([])
+  const ws = useRef(null)
+
+  useEffect(() => {
+    ws.current = new WebSocket('ws://localhost:8000/ws')
+
+    ws.current.onopen = () => console.log('WebSocket Connected')
+
+    ws.current.onclose = () => console.log('WebSocket Disconnected')
+
+    ws.current.onerror = (error) => console.error('WebSocket Error:', error);
+
+    // getting this from backend: await websocket.send_json({"transcript": transcript, "fallacies": fallacies})
+    ws.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      updateTranscript(data.transcript)
+      updateFallacies(data.fallacies)
+      console.log("Transcript:", transcript)
+      console.log("Fallacies:", fallacies)
+    }
+
+    return () => {
+      if (ws.current) {
+        ws.current.close();
+      }
+    }
+  }, [])
 
   return (
     <>
       <h1>Sophism</h1>
       <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+        <button>
+          Start a debate!
         </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
     </>
   )
 }
