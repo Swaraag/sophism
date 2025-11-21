@@ -2,10 +2,12 @@ import { useState, useRef } from 'react'
 
 export default function AudioCapture({ websocketRef }) {
     const [ isRecording, toggleRecording ] = useState(false)
-    const recorderRef = useRef(null);
     const streamRef = useRef(null);
+    const audioContextRef = useRef(null);
+    const workletNodeRef = useRef(null);
+    const micSourceRef = useRef(null);
 
-    function startDebate() {
+    async function startDebate() {
         const websocket = websocketRef.current;
         console.log("websocket prop:", websocket);
         console.log("websocket readyState:", websocket?.readyState);
@@ -15,29 +17,36 @@ export default function AudioCapture({ websocketRef }) {
             return;
         }
         // this below section is for asking for microphone permission
-        
         navigator.mediaDevices
         .getUserMedia({ video: false, audio: true })
-        .then((stream) => {
+        .then(async (stream) => {
             streamRef.current = stream;
-            // this section is for capturing audio through the microphone
-            recorderRef.current = new MediaRecorder(stream);
+
+            const audioContext = new AudioContext();
+            audioContextRef.current = audioContext;
+
+            await audioContext.audioWorklet.addModule("/audio-processor-worklet.js");
             
-            recorderRef.current.ondataavailable = (event) => {
+            const micSource = audioContext.createMediaStreamSource(stream);
+            micSourceRef.current = micSource;
+
+            const workletNode = new AudioWorkletNode(audioContext, "audio-processor-worklet");
+            workletNodeRef.current = workletNode;
+
+            workletNode.port.onmessage = (event) => {
                 const ws = websocketRef.current
                 if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(event.data)
+                    ws.send(event.data.audioData.buffer)
                 }
-                
                 else {
                     console.error("The websocket isn't ready.")
                 }
             }
 
-            // sends info every 3000 miliseconds just to start
-            recorderRef.current.start(3000);
+            micSource.connect(workletNode);
+            workletNode.connect(audioContext.destination);
             toggleRecording(true);
-            console.log("Microphone is recording.");
+            console.log("Microphone is recording.")
 
         })
         .catch((err) => {
@@ -47,13 +56,29 @@ export default function AudioCapture({ websocketRef }) {
     }
 
     // function for if the debate is paused by the user.
-    function pauseDebate() {
-        if (recorderRef.current.state == "recording") {
-            recorderRef.current.stop()
-            toggleRecording(false)
-            streamRef.current.getTracks().forEach(track => track.stop())
-            console.log("Debate paused. Microphone stopped.")
+    async function pauseDebate() {
+        if (isRecording) {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+            
+            if (workletNodeRef.current) {
+                workletNodeRef.current.disconnect();
+            }
+            if (micSourceRef.current) {
+                micSourceRef.current.disconnect();
+            }
+            if (audioContextRef.current) {
+                await audioContextRef.current.close();
+            }
+            
+            toggleRecording(false);
+            console.log("Debate paused. Microphone stopped.");
         }
+        else {
+            return;
+        }
+
     }
 
     function endDebate() {
@@ -75,3 +100,4 @@ export default function AudioCapture({ websocketRef }) {
     )
 }
 
+            
