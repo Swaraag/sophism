@@ -49,7 +49,6 @@ async def detect_fallacies(transcript):
         except KeyError:
             print(f"Invalid dialogue format: {dialogue}")
 
-
     messages = [
             {'role': 'system', 'content': ollama_instructions},
             {'role': 'user', 'content': string_transcript}

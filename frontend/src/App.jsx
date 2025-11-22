@@ -21,8 +21,8 @@ function App() {
       const data = JSON.parse(event.data);
       updateTranscript(data.transcript)
       updateFallacies(data.fallacies)
-      console.log("Transcript:", transcript)
-      console.log("Fallacies:", fallacies)
+      console.log("Transcript:", data.transcript)
+      console.log("Fallacies:", data.fallacies)
     }
 
     return () => {
