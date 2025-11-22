@@ -39,7 +39,14 @@ export default function AudioCapture({ websocketRef }) {
             workletNode.port.onmessage = (event) => {
                 const ws = websocketRef.current
                 if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(event.data.audioData.buffer)
+                    const float32Data = event.data.audioData;
+                    const int16Data = new Int16Array(float32Data.length);
+                    for (let i = 0; i < float32Data.length; i++) {
+                        int16Data[i] = Math.max(-32768, Math.min(32767, float32Data[i] * 32768));
+                    }
+                    
+                    ws.send(int16Data.buffer);
+                    //ws.send(event.data.audioData.buffer)
                 }
                 else {
                     console.error("The websocket isn't ready.")
