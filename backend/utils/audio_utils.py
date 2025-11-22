@@ -20,12 +20,13 @@ def process_audio_bytes(pcm_bytes):
     '''Combines both functions into one step that will be used in main.py'''
 
     audio_array = bytes_to_audio_array(pcm_bytes)
-    # print(f"Audio array shape: {audio_array.shape}")
-    # print(f"Audio array min/max: {audio_array.min()}, {audio_array.max()}")
-    # print(f"Audio array first 10 samples: {audio_array[:10]}")
+
+    max_val = np.max(np.abs(audio_array))
+    if max_val > 0:
+        audio_array = audio_array / max_val  # Scale to -1.0 to 1.0
+
     resampled = resample_audio(audio_array, 48000, 16000)
-    # print(f"Resampled shape: {resampled.shape}")
-    # print(f"Resampled first 10 samples: {resampled[:10]}")
+
     energy = np.mean(np.abs(resampled))
     print(f"Audio energy level: {energy}")
     

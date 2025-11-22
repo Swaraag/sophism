@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     await whisper_service.init_whisper()
     await ollama_service.init_ollama()
     
-    await pyannote_service.test_pyannote_with_file()
+    #await pyannote_service.test_pyannote_with_file()
     # yield to distinguish between startup and shutdown
     yield
 
@@ -72,6 +72,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     websocket.receive_bytes(), 
                     timeout=0.1
                 )
+
                 logger.info(f"Received {len(data)} bytes of audio")
                 bytes_buffer += data
             except asyncio.TimeoutError:
@@ -82,15 +83,18 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if len(bytes_buffer) > 144000 or elapsed_time >= 15:
                 if len(bytes_buffer) > 0:
-                    logger.info(f"Buffer first 100 bytes: {bytes_buffer[:100]}")
                     transcript_seg = await transcript_service.audio_to_transcript(bytes_buffer)
-                    logger.info(f"Transcript segments returned: {len(transcript_seg)}")  # ← Add this
-                    logger.info(f"Transcript content: {transcript_seg}")  # ← Add this
+                    logger.info(f"{len(transcript_seg)} segments returned. Content: {transcript_seg}")
                     transcript.extend(transcript_seg)
                     detected_fallacies = await ollama_service.detect_fallacies(transcript)
                     if len(detected_fallacies) > 0:
                         fallacies.extend(detected_fallacies)
-                    await websocket.send_json({"transcript": transcript, "fallacies": fallacies})
+
+                    try:
+                        await websocket.send_json({"transcript": transcript, "fallacies": fallacies})
+                        logger.info("Sent data to frontend successfully")
+                    except Exception as e:
+                        logger.error(f"❌ Error sending to frontend: {e}", exc_info=True)
 
                 # reset the bytes array
                 bytes_buffer = bytes()
@@ -102,6 +106,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"Error: {e}")
     finally:
-        if websocket.client_state.name != "DISCONNECTED": 
+        if websocket.client_state.name == 1: 
             await websocket.close()
+        connected_clients.discard(websocket)
 
