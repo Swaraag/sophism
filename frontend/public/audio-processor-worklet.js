@@ -14,6 +14,7 @@ class AudioProcessorWorklet extends AudioWorkletProcessor {
             this.bufferIndex += inputChannel.length;
 
             if (this.bufferIndex >= this.bufferSize) {
+                console.log(`Sending ${this.bufferIndex} samples to backend`);
                 this.port.postMessage({ audioData: this.buffer.slice(0, this.bufferIndex)});
                 this.bufferIndex = 0;
             }

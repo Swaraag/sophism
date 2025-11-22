@@ -3,6 +3,9 @@ import torch
 from dotenv import load_dotenv
 import os
 from pyannote.audio.pipelines.utils.hook import ProgressHook
+import soundfile as sf
+import librosa 
+import numpy as np
 
 load_dotenv()
 pipeline = None
@@ -41,21 +44,46 @@ async def process_audio(audio_bytes):
     if pipeline is None:
         raise Exception("Pyannote-audio pipeline not initialized.")
     speaker_segs = []
-    try:
-        torch_tensor = torch.from_numpy(audio_bytes).float()
-        torch_tensor = torch_tensor.unsqueeze(0)
 
-        print(f"Torch tensor shape: {torch_tensor.shape}")
-        print(f"Torch tensor min/max: {torch_tensor.min()}, {torch_tensor.max()}")
-        print(f"Torch tensor first 20 values: {torch_tensor[0, :20]}")
+    try:
+        temp_wav_path = "/tmp/browser_audio_test.wav"
+        sf.write(temp_wav_path, audio_bytes, 16000)
+        print(f"Saved browser audio to {temp_wav_path}")
+
+        audio_from_wav, sr = librosa.load(temp_wav_path, sr=16000, mono=True)
+        print(f"The length is: {len(audio_from_wav)/16000} seconds.")
+        print(f"Loaded from WAV: {len(audio_from_wav)} samples, energy: {np.mean(np.abs(audio_from_wav)):.4f}")
+
+        torch_tensor = torch.from_numpy(audio_from_wav).float().unsqueeze(0)
 
         with ProgressHook() as hook:
             diarization = pipeline({"waveform": torch_tensor, "sample_rate": 16000}, hook=hook)
-
-        print(f"Raw diarization output: {list(diarization.itertracks(yield_label=True))}")
-
+        
         for turn, _, speaker in diarization.itertracks(yield_label=True):
             speaker_segs.append({"speaker": speaker, "start": turn.start, "end": turn.end})
+        
+        print(f"Detected {len(speaker_segs)} speaker segments via WAV roundtrip")
+
+        print(f"Received audio_bytes: {len(audio_bytes)} samples")
+        print(f"Expected duration at 16kHz: {len(audio_bytes)/16000:.1f} seconds")
+        
+        # Clean up
+        os.remove(temp_wav_path)
+
+        # torch_tensor = torch.from_numpy(audio_bytes).float()
+        # torch_tensor = torch_tensor.unsqueeze(0)
+
+        # print(f"Torch tensor shape: {torch_tensor.shape}")
+        # print(f"Torch tensor min/max: {torch_tensor.min()}, {torch_tensor.max()}")
+        # print(f"Torch tensor first 20 values: {torch_tensor[0, :20]}")
+
+        # with ProgressHook() as hook:
+        #     diarization = pipeline({"waveform": torch_tensor, "sample_rate": 16000}, hook=hook)
+
+        # print(f"Raw diarization output: {list(diarization.itertracks(yield_label=True))}")
+
+        # for turn, _, speaker in diarization.itertracks(yield_label=True):
+        #     speaker_segs.append({"speaker": speaker, "start": turn.start, "end": turn.end})
 
         # speaker_segs = [{"speaker": "speaker1", "start": 0:00, "end": 0:25}, ...]
         
