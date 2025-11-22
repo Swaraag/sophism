@@ -17,10 +17,13 @@ Common fallacies to watch for:
   *** or the statement relies solely on the authority without other supporting evidence.
 - Hasty generalization: Drawing broad conclusions from limited evidence
 
-If NO clear fallacy exists, return empty array: []
+If NO clear fallacy exists, return empty array and NOTHING ELSE: []
 
 If fallacies are found, return JSON array, with multiple elements if multiple fallacies fit the criteria above. 
-However, only output multiple fallacies if they are distinct.
+But I want you to return to me nothing else. 
+No introductory line telling you how the search went, no explanation outside of the JSON, no nothing. I just ONLY want the JSON output. 
+This is important because I'm reading this JSON output directly, so I can't have you adding any extra dialogues beyond the JSON output. 
+Only output multiple fallacies if they are distinct.
 [
 {
  "speaker": ...,

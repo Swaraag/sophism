@@ -15,6 +15,6 @@ async def transcribe_audio(audio_bytes) -> str:
             raise Exception("Whisper model is not initialized")
     
     # call function within audio_utils.py that converts the audio_bytes into the right format for whisper
-    transcribed_audio = whisper_model.transcribe(audio_bytes)
+    transcribed_audio = whisper_model.transcribe(audio_bytes, language="en")
     return transcribed_audio["text"]
 
