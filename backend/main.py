@@ -20,6 +20,8 @@ async def lifespan(app: FastAPI):
     await pyannote_service.init_pyannote()
     await whisper_service.init_whisper()
     await ollama_service.init_ollama()
+    
+    await pyannote_service.test_pyannote_with_file()
     # yield to distinguish between startup and shutdown
     yield
 

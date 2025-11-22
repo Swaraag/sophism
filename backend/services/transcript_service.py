@@ -2,6 +2,7 @@ from utils import audio_utils
 from services import whisper_service
 from services import pyannote_service
 
+# audio_to_transcript() is called in main.py's websocket_endpoint() function
 async def audio_to_transcript(pcm_bytes):
     '''Takes the speaker segment information and the transcribed audio and merges them'''
 

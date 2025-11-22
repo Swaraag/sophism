@@ -18,7 +18,10 @@ export default function AudioCapture({ websocketRef }) {
         }
         // this below section is for asking for microphone permission
         navigator.mediaDevices
-        .getUserMedia({ video: false, audio: true })
+        .getUserMedia({ video: false, audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false} })
         .then(async (stream) => {
             streamRef.current = stream;
 
