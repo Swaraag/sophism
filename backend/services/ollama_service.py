@@ -15,6 +15,7 @@ except IOError as e:
 except Exception as e:
     print(f"An unexpected error occurred: {e}")
 
+# init_ollama() is called in main.py's lifespan() function
 async def init_ollama():
     '''Verify the Ollama model is running and working properly.'''
     try:
@@ -24,7 +25,8 @@ async def init_ollama():
         print("The Ollama service is ready and working.")
     except ollama.ResponseError as e:
         raise Exception(f"Ollama error: {e}")
-    
+
+# detect_fallacies() is called in main.py's websocket_endpoint() function
 async def detect_fallacies(transcript):
     # transcript format: transcript = [{"speaker": "speaker1", "start": 0:00, "end": 0:25, "transcript": "Hi my name is..."}, ...]
     fallacy_list = []
