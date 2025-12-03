@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 import os
 from pyannote.audio.pipelines.utils.hook import ProgressHook
 import soundfile as sf
-import librosa 
 import numpy as np
 
 load_dotenv()
