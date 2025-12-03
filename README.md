@@ -12,12 +12,12 @@ An AI-powered real-time debate analyzer that detects logical fallacies as people
 Sophism captures audio from a live debate, identifies who is speaking, transcribes their words, and uses AI to detect logical fallacies in real-time. The system processes everything locally with no external API costs, making it ideal for educational settings, debate practice, or critical thinking exercises.
 
 **Key Features:**
-- 🎤 Real-time audio capture and processing
-- 👥 Speaker diarization (distinguishes between speakers)
-- 📝 Speech-to-text transcription
-- 🧠 AI-powered fallacy detection
-- ⚡ Sub-10 second latency
-- 🔒 Completely local processing (privacy-first)
+- Real-time audio capture and processing
+- Speaker diarization (distinguishes between speakers)
+- Speech-to-text transcription
+- AI-powered fallacy detection
+- Sub-10 second latency
+- Completely local processing (privacy-first)
 
 ## Demo
 
@@ -127,7 +127,7 @@ The system uses a sophisticated buffered processing approach optimized for both 
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/yourusername/sophism.git
+git clone https://github.com/Swaraag/sophism.git
 cd sophism
 ```
 
@@ -165,12 +165,6 @@ echo "HF_TOKEN=your_token_here" > .env
 
 Get your token from [HuggingFace Settings](https://huggingface.co/settings/tokens) and accept the [Pyannote terms](https://huggingface.co/pyannote/speaker-diarization-3.1).
 
-6. **Add test audio file:**
-```bash
-# Record 10-20 seconds of speech and save as test_speech.wav
-# This validates pyannote initialization
-cp /path/to/your/audio.wav backend/test_speech.wav
-```
 
 7. **Start the backend:**
 ```bash
@@ -279,18 +273,6 @@ def resample_audio(input_audio, orig_sr=48000, target_sr=16000):
     return resampled_audio
 ```
 
-### Why Convert Float32 → Int16 → Float32?
-
-This seems redundant but is **industry standard** for production audio systems:
-
-1. **Bandwidth optimization:** Int16 uses 50% less bandwidth than Float32
-2. **Network efficiency:** Critical for real-time streaming over Internet
-3. **Battery optimization:** Lower data transfer = less mobile battery drain
-4. **Cost reduction:** Lower bandwidth = reduced cloud infrastructure costs
-5. **Quality preservation:** 16-bit PCM is sufficient for speech (used by telephony, WebRTC, Opus)
-
-The backend converts back to Float32 because AI models (Whisper, Pyannote) require floating-point precision for mathematical operations.
-
 ### Speaker Diarization
 
 Pyannote-audio uses neural networks trained on the VoxCeleb dataset to:
@@ -323,6 +305,8 @@ The system uses Llama 3.1 (8B parameters) via Ollama with a carefully engineered
 - Slippery slope (unjustified extrapolation)
 - Appeal to authority (irrelevant expertise)
 - Hasty generalization (insufficient evidence)
+
+Using a bigger model would improve fallacy accuracy significantly, can be done easily by downloading a bigger model and adding the name in `backend/services/ollama_service.py`
 
 ## API Reference
 
@@ -365,7 +349,6 @@ Binary message: Int16 PCM audio (480,000 bytes per 5 seconds)
 - **Two speakers optimized** - Best results with two-person debates
 - **CPU-only inference** - GPU support would improve speed
 - **English-only** - Whisper and Llama training bias toward English
-- **Quiet audio** - Browser capture produces lower energy than expected
 
 ### Planned Improvements
 - [ ] GPU acceleration for faster processing
@@ -418,9 +401,7 @@ MIT License - see LICENSE file for details
 ## Contact
 
 For questions, suggestions, or collaboration:
-- GitHub Issues: [sophism/issues](https://github.com/yourusername/sophism/issues)
-- Email: your.email@example.com
+- GitHub Issues: [sophism/issues](https://github.com/Swaraag/sophism/issues)
+- Email: swaraag.sistla@gmail.com
 
 ---
-
-Built with ❤️ for critical thinking and better debates.
