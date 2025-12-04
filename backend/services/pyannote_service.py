@@ -20,14 +20,7 @@ async def init_pyannote():
             "pyannote/speaker-diarization-3.1",
             use_auth_token=hf_token
         )
-
-        # try:
-        #     if hasattr(pipeline, '_segmentation'):
-        #         pipeline._segmentation.threshold = 0.1 
-        #         print("Modified VAD threshold to 0.1")
-        # except Exception as threshold_error:
-        #     print(f"Could not modify threshold: {threshold_error}")
-
+        
         if torch.cuda.is_available():
             pipeline.to(torch.device("cuda"))
             print("Using GPU")
