@@ -66,7 +66,7 @@ async def detect_fallacies(transcript):
         logger.error(f"Ollama ran into an error: {e}")
     except json.JSONDecodeError as e:
         logger.error(f"JSON DECODE ERROR - Raw response: {response['message']['content']}")
-        logger.error(f"Json Decode Error: {e}")
+        logger.error(e)
         return fallacy_list
     except Exception as e:
         logger.error(f"Unexpected Ollama error: {e}", exc_info=True)

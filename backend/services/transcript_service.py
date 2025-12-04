@@ -15,9 +15,6 @@ async def audio_to_transcript(pcm_bytes):
     print(f"Pyannote found {len(speaker_segs)} speaker segments")  # ← Add this
     print(f"Segments: {speaker_segs}")  # ← Add this
 
-    # returns whisper_model.transcribe(audio_bytes)
-    #transcribed_audio = whisper_service.transcribe_audio(processed_bytes)
-
     # format the speaker_segs and transcribed audio
     # desired format: final_transcript = [{"speaker": "speaker1", "start": 0:00, "end": 0:25, "transcript": "Hi my name is..."}, ...]
 
