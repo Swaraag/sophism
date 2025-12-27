@@ -46,73 +46,6 @@ Sophism captures audio from a live debate, identifies who is speaking, transcrib
 }
 ```
 
-## Architecture
-
-### High-Level Flow
-
-```
-Microphone → Browser Capture (48kHz Float32)
-                    ↓
-          AudioWorklet Buffering (5 sec chunks)
-                    ↓
-          Format Conversion (Float32 → Int16)
-                    ↓
-          WebSocket Transmission (480KB/5sec)
-                    ↓
-          FastAPI Backend Processing
-                    ↓
-    ┌───────────────┼───────────────┐
-    ↓               ↓               ↓
-Speaker         Speech          Fallacy
-Diarization     Transcription   Detection
-(Pyannote)      (Whisper)       (Llama 3.1)
-    ↓               ↓               ↓
-    └───────────────┴───────────────┘
-                    ↓
-          Merged Results (JSON)
-                    ↓
-          WebSocket Response
-                    ↓
-          React UI Display
-```
-
-### Tech Stack
-
-**Backend:**
-- **FastAPI** - WebSocket server with async support
-- **Pyannote-audio 3.1** - Neural speaker diarization
-- **OpenAI Whisper** - Speech recognition (local inference)
-- **Ollama + Llama 3.1** - Logical fallacy detection
-- **PyTorch 2.3** - Deep learning framework
-- **Librosa** - Audio processing and resampling
-
-**Frontend:**
-- **React 19** - UI framework with hooks
-- **Vite** - Modern build tool
-- **Web Audio API** - Raw PCM audio capture
-- **AudioWorkletNode** - High-performance audio processing
-- **WebSocket** - Real-time bidirectional communication
-
-### Audio Pipeline Details
-
-The system uses a sophisticated buffered processing approach optimized for both quality and bandwidth:
-
-| Stage | Format | Sample Rate | Samples | Bytes | Duration |
-|-------|--------|-------------|---------|-------|----------|
-| Browser Capture | Float32 | 48 kHz | 240,000 | 960,000 | 5 sec |
-| After Conversion | Int16 | 48 kHz | 240,000 | 480,000 | 5 sec |
-| WebSocket Send | Int16 | - | - | **480,000** | - |
-| Backend Receive | Int16 | - | - | 480,000 | - |
-| Conversion | Float32 | 48 kHz | 240,000 | 960,000 | 5 sec |
-| After Resample | Float32 | 16 kHz | 80,000 | 320,000 | 5 sec |
-| AI Processing | Float32 | 16 kHz | 80,000 | 320,000 | 5 sec |
-
-**Key Optimizations:**
-- **50% bandwidth reduction:** Float32 → Int16 conversion before transmission
-- **Industry-standard format:** Int16 PCM is used by Opus, WebRTC, telephony
-- **Minimal quality loss:** 16-bit precision sufficient for speech
-- **Production-ready:** Scalable architecture for deployment
-
 ## Installation
 
 ### Prerequisites
@@ -202,6 +135,74 @@ Frontend will be available at `http://localhost:5173`
 - Minimize background noise
 - Allow 5-10 seconds for processing lag
 - Use headphones to prevent audio feedback
+
+
+## Architecture
+
+### High-Level Flow
+
+```
+Microphone → Browser Capture (48kHz Float32)
+                    ↓
+          AudioWorklet Buffering (5 sec chunks)
+                    ↓
+          Format Conversion (Float32 → Int16)
+                    ↓
+          WebSocket Transmission (480KB/5sec)
+                    ↓
+          FastAPI Backend Processing
+                    ↓
+    ┌───────────────┼───────────────┐
+    ↓               ↓               ↓
+Speaker         Speech          Fallacy
+Diarization     Transcription   Detection
+(Pyannote)      (Whisper)       (Llama 3.1)
+    ↓               ↓               ↓
+    └───────────────┴───────────────┘
+                    ↓
+          Merged Results (JSON)
+                    ↓
+          WebSocket Response
+                    ↓
+          React UI Display
+```
+
+### Tech Stack
+
+**Backend:**
+- **FastAPI** - WebSocket server with async support
+- **Pyannote-audio 3.1** - Neural speaker diarization
+- **OpenAI Whisper** - Speech recognition (local inference)
+- **Ollama + Llama 3.1** - Logical fallacy detection
+- **PyTorch 2.3** - Deep learning framework
+- **Librosa** - Audio processing and resampling
+
+**Frontend:**
+- **React 19** - UI framework with hooks
+- **Vite** - Modern build tool
+- **Web Audio API** - Raw PCM audio capture
+- **AudioWorkletNode** - High-performance audio processing
+- **WebSocket** - Real-time bidirectional communication
+
+### Audio Pipeline Details
+
+The system uses a sophisticated buffered processing approach optimized for both quality and bandwidth:
+
+| Stage | Format | Sample Rate | Samples | Bytes | Duration |
+|-------|--------|-------------|---------|-------|----------|
+| Browser Capture | Float32 | 48 kHz | 240,000 | 960,000 | 5 sec |
+| After Conversion | Int16 | 48 kHz | 240,000 | 480,000 | 5 sec |
+| WebSocket Send | Int16 | - | - | **480,000** | - |
+| Backend Receive | Int16 | - | - | 480,000 | - |
+| Conversion | Float32 | 48 kHz | 240,000 | 960,000 | 5 sec |
+| After Resample | Float32 | 16 kHz | 80,000 | 320,000 | 5 sec |
+| AI Processing | Float32 | 16 kHz | 80,000 | 320,000 | 5 sec |
+
+**Key Optimizations:**
+- **50% bandwidth reduction:** Float32 → Int16 conversion before transmission
+- **Industry-standard format:** Int16 PCM is used by Opus, WebRTC, telephony
+- **Minimal quality loss:** 16-bit precision sufficient for speech
+- **Production-ready:** Scalable architecture for deployment
 
 ## Project Structure
 
