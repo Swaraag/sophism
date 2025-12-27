@@ -64,6 +64,8 @@ async def websocket_endpoint(websocket: WebSocket):
     speakers = []
     # current time
     last_processed_time = time.time()
+    # total time to add timestamp offsets
+    total_time_processed = 0
 
     try:
         while True:
@@ -83,7 +85,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if len(bytes_buffer) > 144000 or elapsed_time >= 15:
                 if len(bytes_buffer) > 0:
-                    transcript_seg = await transcript_service.audio_to_transcript(bytes_buffer)
+                    transcript_seg = await transcript_service.audio_to_transcript(bytes_buffer, total_time_processed)
                     logger.info(f"{len(transcript_seg)} segments returned. Content: {transcript_seg}")
                     transcript.extend(transcript_seg)
                     detected_fallacies = await ollama_service.detect_fallacies(transcript)
@@ -96,10 +98,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     except Exception as e:
                         logger.error(f"❌ Error sending to frontend: {e}", exc_info=True)
 
+                # divide by 2 to convert bytes to samples and divide by 48000 to convert to seconds (48000 samples per second)
+                total_time_processed += (len(bytes_buffer) / 2) / 48000
                 # reset the bytes array
                 bytes_buffer = bytes()
                 # reset the last processed time
                 last_processed_time = current_time
+
 
     except WebSocketDisconnect:
         connected_clients.remove(websocket)

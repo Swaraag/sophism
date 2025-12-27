@@ -3,7 +3,7 @@ from services import whisper_service
 from services import pyannote_service
 
 # audio_to_transcript() is called in main.py's websocket_endpoint() function
-async def audio_to_transcript(pcm_bytes):
+async def audio_to_transcript(pcm_bytes, total_time_processed):
     '''Takes the speaker segment information and the transcribed audio and merges them'''
 
     # transcribed_audio is a numpy array of 16000 khz
@@ -25,5 +25,7 @@ async def audio_to_transcript(pcm_bytes):
         start = int(segment["start"]*16000)
         end = int(segment["end"]*16000)
         segment["transcript"] = await whisper_service.transcribe_audio(processed_bytes[start:end])
+        segment["start"] += total_time_processed
+        segment["end"] += total_time_processed
         final_transcript.append(segment)
     return final_transcript
