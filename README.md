@@ -50,7 +50,7 @@ Sophism captures audio from a live debate, identifies who is speaking, transcrib
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.12
 - Node.js 18+
 - FFmpeg
 - Ollama
@@ -67,6 +67,7 @@ cd sophism
 2. **Install Python dependencies:**
 ```bash
 cd backend
+# Ensure you're using Python 3.12
 pip install -r requirements.txt
 ```
 

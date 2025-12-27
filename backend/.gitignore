@@ -1,4 +1,4 @@
-venv/
+sophism-backend-venv/
 __pycache__/
 .env
 *.pyc
