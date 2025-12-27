@@ -10,7 +10,7 @@ function App() {
 
   const shouldRetry = useRef(true)
   const wsRetryCount = useRef(0)
-  const wsRetryDelay = useRef(500)
+  const wsRetryDelay = useRef(5000)
   const wsRetryTimeout = useRef(null)
 
   function createWS() {
@@ -23,7 +23,7 @@ function App() {
     ws.current.onopen = () => {
       console.log('WebSocket Connected');
       // reset values if the socket connects successfully
-      wsRetryDelay.current = 500
+      wsRetryDelay.current = 5000
       wsRetryCount.current = 0
     }
 

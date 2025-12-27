@@ -56,7 +56,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     # buffer of bytes that holds the incoming websocket information
     bytes_buffer = bytes()
-    # transcript format is [{"diagID": 0, "speaker": Bob, "diag": "What's up?"}]
+    # transcript format: [{"speaker": "speaker1", "start": 0:00, "end": 0:25, "transcript": "What's up?"}, ...]
     transcript = []
     # fallacy format is [{"speaker": "Bob", "fallacy_type": "ad hominem", "diag": "You're just stupid", "explanation": "Attacks the person rather than their argument", "confidence": "high"}]
     fallacies = []
