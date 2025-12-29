@@ -13,17 +13,14 @@ export default function FallacyDisplay({ fallacies }) {
     };
 
     function fallacyClicked(event) {
-        console.log("Clicked!")
         // .closest() ensures that even clicking a child of the list element ends up finding the right item
         const clickedItem = event.target.closest('li');
         if (clickedItem) {
             const itemKey = Number(clickedItem.dataset.key);
             if (expandedFallacies.has(itemKey)) {
-                console.log("Adding!")
                 removeFallacy(itemKey);
             }
             else {
-                console.log("Removing!")
                 addFallacy(itemKey);
             }
 
