@@ -40,6 +40,11 @@ app.add_middleware(
 # active websocket clients
 connected_clients = set()
 
+async def send_heartbeats(websocket):
+    while True:
+        await asyncio.sleep(5)  # Wait 5 seconds
+        await websocket.send_json({"type": "ping"})  # Send keepalive
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -85,6 +90,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if len(bytes_buffer) > 144000 or elapsed_time >= 15:
                 if len(bytes_buffer) > 0:
+                    heartbeat_task = asyncio.create_task(send_heartbeats(websocket))
                     transcript_seg = await transcript_service.audio_to_transcript(bytes_buffer, total_time_processed)
                     logger.info(f"{len(transcript_seg)} segments returned. Content: {transcript_seg}")
                     transcript.extend(transcript_seg)

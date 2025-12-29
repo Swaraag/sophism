@@ -7,6 +7,15 @@ export default function AudioCapture({ websocketRef }) {
     const workletNodeRef = useRef(null);
     const micSourceRef = useRef(null);
 
+    async function toggleDebate() {
+        if (isRecording) {
+            pauseDebate();
+        }
+        else {
+            startDebate();
+        }
+    }
+
     async function startDebate() {
         const websocket = websocketRef.current;
         console.log("websocket prop:", websocket);
@@ -92,16 +101,16 @@ export default function AudioCapture({ websocketRef }) {
     }
 
     function endDebate() {
-
+        // end debate requires doing everything in pause debate, but then also refreshing all the values
+        pauseDebate();
+        // need something here to blank slate all of the other values
     }
     
     return (
         <div className="audio-controls">
-            <button onClick={startDebate}>
-                Start a debate
-            </button>
-            <button onClick={pauseDebate}>
-                Pause debate
+
+            <button onClick={toggleDebate}>
+                {isRecording ? 'Pause Debate' : 'Start Debate'}
             </button>
             <button onClick={endDebate}>
                 End debate
