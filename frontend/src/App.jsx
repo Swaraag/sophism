@@ -55,6 +55,9 @@ function App() {
     // getting this from backend: await websocket.send_json({"transcript": transcript, "fallacies": fallacies})
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      if (data.type == "ping") {
+        return;
+      }
       updateTranscript(data.transcript)
       updateFallacies(data.fallacies)
       console.log("Transcript:", data.transcript)

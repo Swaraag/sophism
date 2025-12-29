@@ -41,9 +41,16 @@ app.add_middleware(
 connected_clients = set()
 
 async def send_heartbeats(websocket):
-    while True:
-        await asyncio.sleep(5)  # Wait 5 seconds
-        await websocket.send_json({"type": "ping"})  # Send keepalive
+    try:
+        while True:
+            await asyncio.sleep(5)
+            await websocket.send_json({"type": "ping"})
+    except asyncio.CancelledError:
+        # Task was cancelled, exit cleanly
+        pass
+    except Exception as e:
+        # Connection closed, exit
+        pass
 
 @app.get("/")
 async def root():
@@ -124,6 +131,11 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"Error: {e}")
     finally:
+        heartbeat_task.cancel()
+        try:
+            await heartbeat_task
+        except asyncio.CancelledError:
+            pass  # Expected when we cancel it
         if websocket.client_state.name == 1: 
             await websocket.close()
         connected_clients.discard(websocket)
