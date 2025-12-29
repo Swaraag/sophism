@@ -72,6 +72,13 @@ async def websocket_endpoint(websocket: WebSocket):
     # total time to add timestamp offsets
     total_time_processed = 0
 
+    # initial information send
+    try:
+        await websocket.send_json({"transcript": transcript, "fallacies": fallacies})
+        logger.info("Sent data to frontend successfully")
+    except Exception as e:
+        logger.error(f"❌ Error sending to frontend: {e}", exc_info=True)
+
     try:
         while True:
             try:

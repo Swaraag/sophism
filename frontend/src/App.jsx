@@ -11,8 +11,14 @@ function App() {
 
   const shouldRetry = useRef(true)
   const wsRetryCount = useRef(0)
-  const wsRetryDelay = useRef(5000)
+  const wsRetryDelay = useRef(2500)
   const wsRetryTimeout = useRef(null)
+
+  function onEndDebate() {
+    ws.current.close();
+    updateTranscript([]);
+    updateFallacies([]);
+  }
 
   function createWS() {
     if (ws.current) {
@@ -24,7 +30,7 @@ function App() {
     ws.current.onopen = () => {
       console.log('WebSocket Connected');
       // reset values if the socket connects successfully
-      wsRetryDelay.current = 5000
+      wsRetryDelay.current = 2500
       wsRetryCount.current = 0
     }
 
@@ -35,10 +41,10 @@ function App() {
       wsRetryCount.current += 1
 
       if (wsRetryCount.current < 7 && shouldRetry.current) {
-        console.log("Retrying WebSocket connection (#" + wsRetryCount.current + "): " + wsRetryDelay.current + "ms")
+        console.log("Retrying WebSocket connection (#" + wsRetryCount.current + "): " + (wsRetryDelay.current - 5000) + "ms")
         wsRetryTimeout.current = setTimeout(() => {
           createWS()
-        }, wsRetryDelay.current)
+        }, wsRetryDelay.current - 5000)
       }
     }
 
@@ -75,7 +81,7 @@ function App() {
   return (
     <>
       <h1>Sophism</h1>
-      <AudioCapture websocketRef={ws}/>
+      <AudioCapture websocketRef={ws} onEndDebate={onEndDebate}/>
 
       <div className="content-flex">
         <div className="transcript-panel"><TranscriptDisplay transcript={transcript}/></div>

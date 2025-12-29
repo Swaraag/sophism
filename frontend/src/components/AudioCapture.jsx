@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 
-export default function AudioCapture({ websocketRef }) {
+export default function AudioCapture({ websocketRef, onEndDebate }) {
     const [ isRecording, toggleRecording ] = useState(false)
     const streamRef = useRef(null);
     const audioContextRef = useRef(null);
@@ -99,12 +99,12 @@ export default function AudioCapture({ websocketRef }) {
         }
 
     }
-
-    function endDebate() {
-        // end debate requires doing everything in pause debate, but then also refreshing all the values
+            
+    const endDebate = () => {
         pauseDebate();
-        // need something here to blank slate all of the other values
+        onEndDebate();
     }
+
     
     return (
         <div className="audio-controls">
