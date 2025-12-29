@@ -96,7 +96,7 @@ export default function AudioCapture({ websocketRef }) {
     }
     
     return (
-        <>
+        <div className="audio-controls">
             <button onClick={startDebate}>
                 Start a debate
             </button>
@@ -106,7 +106,7 @@ export default function AudioCapture({ websocketRef }) {
             <button onClick={endDebate}>
                 End debate
             </button>
-        </>
+        </div>
     )
 }
 

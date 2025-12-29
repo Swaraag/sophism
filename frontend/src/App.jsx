@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import AudioCapture from './components/AudioCapture'
 import TranscriptDisplay from './components/TranscriptDisplay'
+import FallacyDisplay from './components/FallacyDisplay'
 
 function App() {
   const [transcript, updateTranscript] = useState([])
@@ -74,12 +75,14 @@ function App() {
   return (
     <>
       <h1>Sophism</h1>
-      <div className="card">
-        <AudioCapture websocketRef={ws}/>
+      <AudioCapture websocketRef={ws}/>
+
+      <div className="content-flex">
+        <div className="transcript-panel"><TranscriptDisplay transcript={transcript}/></div>
+        <div className="fallacy-panel"><FallacyDisplay fallacies={fallacies}/></div>
       </div>
-      <div className="transcript">
-        <TranscriptDisplay transcript={transcript}/>
-      </div>
+
+      
     </>
   )
 }
