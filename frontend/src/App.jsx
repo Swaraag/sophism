@@ -22,13 +22,19 @@ function App() {
   const retryTimeout = useRef(null)
 
   function onEndDebate() {
+    // Stop recording but keep transcript/fallacies visible
+    setIsProcessing(false)
+    setErrorMessage(null)
+  }
+
+  function onReset() {
     shouldRetry.current = false
     ws.current?.close()
     setTranscript([])
     setFallacies([])
+    setSpeakerNames({})
     setErrorMessage(null)
     setIsProcessing(false)
-    // allow reconnect for next debate
     setTimeout(() => {
       shouldRetry.current = true
       retryCount.current = 0
@@ -152,6 +158,7 @@ function App() {
           websocketRef={ws}
           wsStatus={wsStatus}
           onEndDebate={onEndDebate}
+          onReset={onReset}
         />
 
         <div className="content-grid">

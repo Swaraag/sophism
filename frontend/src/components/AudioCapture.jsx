@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react'
 
-export default function AudioCapture({ websocketRef, wsStatus, onEndDebate }) {
+export default function AudioCapture({ websocketRef, wsStatus, onEndDebate, onReset }) {
   const [isRecording, setIsRecording] = useState(false)
+  const [isEnded, setIsEnded] = useState(false)
   const streamRef = useRef(null)
   const audioContextRef = useRef(null)
   const workletNodeRef = useRef(null)
@@ -74,10 +75,33 @@ export default function AudioCapture({ websocketRef, wsStatus, onEndDebate }) {
 
   async function endDebate() {
     await pauseDebate()
+    setIsEnded(true)
     onEndDebate()
   }
 
+  function continueDebate() {
+    setIsEnded(false)
+  }
+
+  function resetDebate() {
+    setIsEnded(false)
+    onReset()
+  }
+
   const canStart = wsStatus === 'connected'
+
+  if (isEnded) {
+    return (
+      <div className="controls">
+        <button className="btn btn-primary btn-start" onClick={continueDebate}>
+          <MicIcon /> Continue
+        </button>
+        <button className="btn btn-danger" onClick={resetDebate}>
+          <StopIcon /> Reset
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="controls">
@@ -94,7 +118,7 @@ export default function AudioCapture({ websocketRef, wsStatus, onEndDebate }) {
         )}
       </button>
       <button className="btn btn-danger" onClick={endDebate}>
-        <StopIcon /> End & Reset
+        <StopIcon /> End Debate
       </button>
     </div>
   )
