@@ -1,7 +1,7 @@
 class AudioProcessorWorklet extends AudioWorkletProcessor {
     constructor() {
         super();
-        this.bufferSize = 240000; // 3 second at 16kHz
+        this.bufferSize = 240000; // 5 seconds at 48kHz (browser capture rate)
         this.buffer = new Float32Array(this.bufferSize);
         this.bufferIndex = 0; 
         

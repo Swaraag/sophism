@@ -64,14 +64,7 @@ git clone https://github.com/Swaraag/sophism.git
 cd sophism
 ```
 
-2. **Install Python dependencies:**
-```bash
-cd backend
-# Ensure you're using Python 3.12
-pip install -r requirements.txt
-```
-
-3. **Install system dependencies:**
+2. **Install system dependencies:**
 ```bash
 # macOS
 brew install ffmpeg portaudio libsndfile
@@ -80,7 +73,7 @@ brew install ffmpeg portaudio libsndfile
 sudo apt-get install ffmpeg portaudio19-dev libsndfile1
 ```
 
-4. **Install and configure Ollama:**
+3. **Install and configure Ollama:**
 ```bash
 # macOS
 brew install ollama
@@ -91,21 +84,33 @@ brew install ollama
 ollama pull llama3.1:8b
 ```
 
-5. **Configure HuggingFace authentication:**
+4. **Configure HuggingFace authentication:**
 ```bash
 # Create a .env file in the backend directory
-echo "HF_TOKEN=your_token_here" > .env
+echo "HF_TOKEN=your_token_here" > backend/.env
 ```
 
 Get your token from [HuggingFace Settings](https://huggingface.co/settings/tokens) and accept the [Pyannote terms](https://huggingface.co/pyannote/speaker-diarization-3.1).
 
-
-7. **Start the backend:**
+5. **Create a Python 3.12 virtual environment and install dependencies:**
 ```bash
-uvicorn main:app --reload
+cd backend
+python3.12 -m venv sophism-backend-venv
+sophism-backend-venv/bin/pip install -r requirements.txt
 ```
 
+> **Python 3.12 is required.** The `torch==2.3.0` pin in requirements.txt is incompatible with Python 3.13+. On macOS, if `python3.12` is not found, install it with `brew install python@3.12`.
+
+6. **Start the backend:**
+```bash
+sophism-backend-venv/bin/uvicorn main:app --reload --reload-exclude sophism-backend-venv
+```
+
+> The `--reload-exclude sophism-backend-venv` flag is required. Without it, uvicorn watches the venv directory and restarts in an infinite loop every time pip finishes writing package files.
+
 Backend will be available at `http://localhost:8000`
+
+> **First startup takes 1–2 minutes** — Whisper (`base` model) and the Pyannote speaker-diarization model are downloaded and loaded into memory on first run.
 
 ### Frontend Setup
 

@@ -1,4 +1,3 @@
-# overlapping audio need to read this article: https://github.com/pyannote/pyannote-audio/discussions/1157
 from services import pyannote_service
 from services import whisper_service
 from services import ollama_service
@@ -10,34 +9,25 @@ from contextlib import asynccontextmanager
 import asyncio
 import time
 
-## LOGGING SETUP
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("main")
 
-# loading startup services
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await pyannote_service.init_pyannote()
     await whisper_service.init_whisper()
     await ollama_service.init_ollama()
-    
-    #await pyannote_service.test_pyannote_with_file()
-    # yield to distinguish between startup and shutdown
     yield
 
-## FAST API SETUP
 app = FastAPI(lifespan=lifespan)
-# in order to allow requests between the frontend and backend
-# allow_origins=["https://yourdomain.com"] for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins (fine for development)
-    allow_credentials=True, # allows cookies and auth
-    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allows all headers
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# active websocket clients
 connected_clients = set()
 
 async def send_heartbeats(websocket):
@@ -46,20 +36,13 @@ async def send_heartbeats(websocket):
             await asyncio.sleep(5)
             await websocket.send_json({"type": "ping"})
     except asyncio.CancelledError:
-        # Task was cancelled, exit cleanly
         pass
-    except Exception as e:
-        # Connection closed, exit
+    except Exception:
         pass
 
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
-
-@app.post("/api/debate/start")
-async def start_debate():
-    return {"status": "Debate started"}
-
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -67,34 +50,24 @@ async def websocket_endpoint(websocket: WebSocket):
     heartbeat_task = asyncio.create_task(send_heartbeats(websocket))
     connected_clients.add(websocket)
 
-    # buffer of bytes that holds the incoming websocket information
     bytes_buffer = bytes()
-    # transcript format: [{"speaker": "speaker1", "start": 0:00, "end": 0:25, "transcript": "What's up?"}, ...]
     transcript = []
-    # fallacy format is [{"speaker": "Bob", "fallacy_type": "ad hominem", "diag": "You're just stupid", "explanation": "Attacks the person rather than their argument", "confidence": "high"}]
     fallacies = []
-    # speaker format is ["speaker1", "speaker2"]
-    speakers = []
-    # current time
+    # tracks which statement strings have already been flagged to prevent duplicate fallacies
+    seen_fallacy_statements = set()
     last_processed_time = time.time()
-    # total time to add timestamp offsets
     total_time_processed = 0
 
-    # initial information send
     try:
-        await websocket.send_json({"transcript": transcript, "fallacies": fallacies})
-        logger.info("Sent data to frontend successfully")
+        await websocket.send_json({"type": "init", "transcript": transcript, "fallacies": fallacies})
+        logger.info("Sent initial state to frontend")
     except Exception as e:
-        logger.error(f"❌ Error sending to frontend: {e}", exc_info=True)
+        logger.error(f"Error sending initial state: {e}")
 
     try:
         while True:
             try:
-                data = await asyncio.wait_for(
-                    websocket.receive_bytes(), 
-                    timeout=0.1
-                )
-
+                data = await asyncio.wait_for(websocket.receive_bytes(), timeout=0.1)
                 logger.info(f"Received {len(data)} bytes of audio")
                 bytes_buffer += data
             except asyncio.TimeoutError:
@@ -105,38 +78,65 @@ async def websocket_endpoint(websocket: WebSocket):
 
             if len(bytes_buffer) > 144000 or elapsed_time >= 15:
                 if len(bytes_buffer) > 0:
-                    transcript_seg = await transcript_service.audio_to_transcript(bytes_buffer, total_time_processed)
-                    logger.info(f"{len(transcript_seg)} segments returned. Content: {transcript_seg}")
-                    transcript.extend(transcript_seg)
-                    detected_fallacies = await ollama_service.detect_fallacies(transcript)
-                    if len(detected_fallacies) > 0:
-                        fallacies.extend(detected_fallacies)
-
                     try:
-                        await websocket.send_json({"transcript": transcript, "fallacies": fallacies})
-                        logger.info("Sent data to frontend successfully")
-                    except Exception as e:
-                        logger.error(f"❌ Error sending to frontend: {e}", exc_info=True)
+                        # notify frontend that processing has started
+                        await websocket.send_json({"type": "processing"})
 
-                # divide by 2 to convert bytes to samples and divide by 48000 to convert to seconds (48000 samples per second)
+                        process_start = time.time()
+                        new_segments = await transcript_service.audio_to_transcript(bytes_buffer, total_time_processed)
+
+                        transcript_time = time.time() - process_start
+                        logger.info(f"Transcript processing: {transcript_time:.2f}s — {len(new_segments)} new segments")
+
+                        transcript.extend(new_segments)
+
+                        # only run fallacy detection on new segments, using full transcript for context
+                        fallacy_start = time.time()
+                        raw_fallacies = await ollama_service.detect_fallacies(transcript, new_segments)
+                        fallacy_time = time.time() - fallacy_start
+                        logger.info(f"Fallacy detection: {fallacy_time:.2f}s")
+
+                        # deduplicate by statement text — same statement can't be flagged twice
+                        new_fallacies = []
+                        for f in raw_fallacies:
+                            key = f.get("statement", "").strip()
+                            if key and key not in seen_fallacy_statements:
+                                seen_fallacy_statements.add(key)
+                                new_fallacies.append(f)
+                                fallacies.append(f)
+
+                        logger.info(f"Total processing: {time.time() - process_start:.2f}s")
+
+                        await websocket.send_json({
+                            "type": "update",
+                            "new_segments": new_segments,
+                            "new_fallacies": new_fallacies,
+                            "transcript": transcript,
+                            "fallacies": fallacies,
+                        })
+                        logger.info("Sent update to frontend")
+
+                    except Exception as e:
+                        logger.error(f"Processing error: {e}", exc_info=True)
+                        try:
+                            await websocket.send_json({"type": "error", "message": str(e)})
+                        except Exception:
+                            pass
+
                 total_time_processed += (len(bytes_buffer) / 2) / 48000
-                # reset the bytes array
                 bytes_buffer = bytes()
-                # reset the last processed time
                 last_processed_time = current_time
 
-
     except WebSocketDisconnect:
-        connected_clients.remove(websocket)
+        connected_clients.discard(websocket)
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"WebSocket error: {e}")
     finally:
         heartbeat_task.cancel()
         try:
             await heartbeat_task
         except asyncio.CancelledError:
-            pass  # Expected when we cancel it
-        if websocket.client_state.name == 1: 
+            pass
+        if websocket.client_state.name == 1:
             await websocket.close()
         connected_clients.discard(websocket)
-

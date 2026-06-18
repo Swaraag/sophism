@@ -1,98 +1,187 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
 import AudioCapture from './components/AudioCapture'
 import TranscriptDisplay from './components/TranscriptDisplay'
 import FallacyDisplay from './components/FallacyDisplay'
 
-function App() {
-  const [transcript, updateTranscript] = useState([])
-  const [fallacies, updateFallacies] = useState([])
-  const ws = useRef(null)
+// 'connecting' | 'connected' | 'disconnected' | 'retrying' | 'failed'
+const WS_URL = 'ws://localhost:8000/ws'
+const MAX_RETRIES = 7
 
+function App() {
+  const [transcript, setTranscript] = useState([])
+  const [fallacies, setFallacies] = useState([])
+  const [wsStatus, setWsStatus] = useState('connecting')
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [errorMessage, setErrorMessage] = useState(null)
+  const [speakerNames, setSpeakerNames] = useState({}) // { SPEAKER_00: 'Alice', ... }
+
+  const ws = useRef(null)
   const shouldRetry = useRef(true)
-  const wsRetryCount = useRef(0)
-  const wsRetryDelay = useRef(2500)
-  const wsRetryTimeout = useRef(null)
+  const retryCount = useRef(0)
+  const retryTimeout = useRef(null)
 
   function onEndDebate() {
-    ws.current.close();
-    updateTranscript([]);
-    updateFallacies([]);
+    shouldRetry.current = false
+    ws.current?.close()
+    setTranscript([])
+    setFallacies([])
+    setErrorMessage(null)
+    setIsProcessing(false)
+    // allow reconnect for next debate
+    setTimeout(() => {
+      shouldRetry.current = true
+      retryCount.current = 0
+      setWsStatus('connecting')
+      createWS()
+    }, 500)
   }
 
-  function createWS() {
+  const createWS = useCallback(() => {
     if (ws.current) {
-      ws.current.close();
-      ws.current = null;
+      ws.current.close()
+      ws.current = null
     }
-    ws.current = new WebSocket('ws://localhost:8000/ws')
+    setWsStatus('connecting')
+    ws.current = new WebSocket(WS_URL)
 
     ws.current.onopen = () => {
-      console.log('WebSocket Connected');
-      // reset values if the socket connects successfully
-      wsRetryDelay.current = 2500
-      wsRetryCount.current = 0
+      console.log('WebSocket connected')
+      setWsStatus('connected')
+      setErrorMessage(null)
+      retryCount.current = 0
     }
 
     ws.current.onclose = () => {
-      console.log('WebSocket Disconnected')
-      // update retry delay and the count
-      wsRetryDelay.current *= 2
-      wsRetryCount.current += 1
+      console.log('WebSocket disconnected')
+      setIsProcessing(false)
 
-      if (wsRetryCount.current < 7 && shouldRetry.current) {
-        console.log("Retrying WebSocket connection (#" + wsRetryCount.current + "): " + (wsRetryDelay.current - 5000) + "ms")
-        wsRetryTimeout.current = setTimeout(() => {
-          createWS()
-        }, wsRetryDelay.current - 5000)
+      if (!shouldRetry.current) return
+
+      retryCount.current += 1
+      if (retryCount.current >= MAX_RETRIES) {
+        setWsStatus('failed')
+        return
       }
+
+      // exponential backoff: 2s, 4s, 8s, 16s... capped at 30s
+      const delay = Math.min(2000 * Math.pow(2, retryCount.current - 1), 30000)
+      setWsStatus('retrying')
+      console.log(`Retrying WebSocket (#${retryCount.current}) in ${delay}ms`)
+      retryTimeout.current = setTimeout(createWS, delay)
     }
 
     ws.current.onerror = (error) => {
-      console.error('WebSocket Error:', error);
+      console.error('WebSocket error:', error)
     }
 
-    // getting this from backend: await websocket.send_json({"transcript": transcript, "fallacies": fallacies})
     ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type == "ping") {
-        return;
+      const data = JSON.parse(event.data)
+
+      if (data.type === 'ping') return
+
+      if (data.type === 'processing') {
+        setIsProcessing(true)
+        return
       }
-      updateTranscript(data.transcript)
-      updateFallacies(data.fallacies)
-      console.log("Transcript:", data.transcript)
-      console.log("Fallacies:", data.fallacies)
-    }
 
-  }
-
-  useEffect(() => {
-
-    createWS()
-
-    return () => {
-      if (ws.current) {
-        shouldRetry.current = false
-        ws.current.close();
+      if (data.type === 'error') {
+        setIsProcessing(false)
+        setErrorMessage(data.message)
+        return
       }
-      if (wsRetryTimeout.current) {
-        clearTimeout(wsRetryTimeout.current)
+
+      if (data.type === 'init' || data.type === 'update') {
+        setIsProcessing(false)
+        setErrorMessage(null)
+        setTranscript(data.transcript)
+        setFallacies(data.fallacies)
+
+        // auto-discover speaker IDs and assign default names
+        if (data.transcript) {
+          setSpeakerNames(prev => {
+            const next = { ...prev }
+            data.transcript.forEach(seg => {
+              if (seg.speaker && !(seg.speaker in next)) {
+                const n = Object.keys(next).length
+                next[seg.speaker] = `Speaker ${n + 1}`
+              }
+            })
+            return next
+          })
+        }
       }
     }
   }, [])
 
-  return (
-    <>
-      <h1>Sophism</h1>
-      <AudioCapture websocketRef={ws} onEndDebate={onEndDebate}/>
+  useEffect(() => {
+    createWS()
+    return () => {
+      shouldRetry.current = false
+      ws.current?.close()
+      if (retryTimeout.current) clearTimeout(retryTimeout.current)
+    }
+  }, [createWS])
 
-      <div className="content-flex">
-        <div className="transcript-panel"><TranscriptDisplay transcript={transcript}/></div>
-        <div className="fallacy-panel"><FallacyDisplay fallacies={fallacies}/></div>
+  function renameSpeaker(speakerId, name) {
+    setSpeakerNames(prev => ({ ...prev, [speakerId]: name }))
+  }
+
+  return (
+    <div className="app">
+      <header className="app-header">
+        <h1 className="app-title">Sophism</h1>
+        <p className="app-subtitle">Real-time logical fallacy detection</p>
+      </header>
+
+      <div className="status-bar">
+        <ConnectionStatus status={wsStatus} />
+        {isProcessing && <span className="processing-pill">Analyzing…</span>}
+        {errorMessage && <span className="error-pill" title={errorMessage}>Processing error</span>}
       </div>
 
-      
-    </>
+      <main className="app-main">
+        <AudioCapture
+          websocketRef={ws}
+          wsStatus={wsStatus}
+          onEndDebate={onEndDebate}
+        />
+
+        <div className="content-grid">
+          <section className="panel transcript-panel">
+            <TranscriptDisplay
+              transcript={transcript}
+              speakerNames={speakerNames}
+            />
+          </section>
+          <section className="panel fallacy-panel">
+            <FallacyDisplay
+              fallacies={fallacies}
+              speakerNames={speakerNames}
+              onRename={renameSpeaker}
+              speakerIds={Object.keys(speakerNames)}
+            />
+          </section>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function ConnectionStatus({ status }) {
+  const config = {
+    connecting: { dot: 'dot dot--yellow', label: 'Connecting…' },
+    connected:  { dot: 'dot dot--green',  label: 'Connected' },
+    retrying:   { dot: 'dot dot--yellow', label: 'Reconnecting…' },
+    disconnected:{ dot: 'dot dot--red',   label: 'Disconnected' },
+    failed:     { dot: 'dot dot--red',    label: 'Connection failed — is the backend running?' },
+  }
+  const { dot, label } = config[status] ?? config.disconnected
+  return (
+    <span className="connection-status">
+      <span className={dot} />
+      {label}
+    </span>
   )
 }
 
