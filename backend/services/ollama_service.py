@@ -1,42 +1,49 @@
-import ollama
-import json
 import os
+import json
 import logging
+from groq import Groq
+from dotenv import load_dotenv
 
-logging.basicConfig(level=logging.INFO)
+load_dotenv()
 logger = logging.getLogger("main")
+
+_client = None
 
 current_dir = os.path.dirname(__file__)
 ollama_instructions_path = os.path.join(current_dir, "ollama_instructions.txt")
 try:
     with open(ollama_instructions_path, "r") as f:
         ollama_instructions = f.read()
-except FileNotFoundError:
-    logger.error("Error: backend/services/ollama_instructions.txt was not found.")
-except IOError as e:
-    logger.error(f"Error reading ollama_instructions.txt: {e}")
 except Exception as e:
-    logger.error(f"Unexpected error loading ollama_instructions.txt: {e}", exc_info=True)
+    logger.error(f"Failed to load ollama_instructions.txt: {e}")
 
-async def init_ollama():
-    '''Verify the Ollama model is running and working properly.'''
-    try:
-        response = ollama.generate(model='llama3.1:8b', prompt="Test")
-        if not response or not response.get("response"):
-            raise Exception("Ollama returned an empty response.")
-        logger.info("Ollama service is ready.")
-    except ollama.ResponseError as e:
-        raise Exception(f"Ollama error: {e}")
+def init_ollama():
+    global _client
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise Exception("GROQ_API_KEY not set in environment.")
+    _client = Groq(api_key=api_key)
+    # lightweight connectivity check
+    _client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[{"role": "user", "content": "hi"}],
+        max_tokens=1,
+    )
+    logger.info("Groq (fallacy detection) service ready.")
 
 async def detect_fallacies(full_transcript, new_segments):
     '''
     Analyzes new_segments for fallacies using full_transcript as context.
-    Only flags fallacies present in new_segments to avoid re-detecting old ones.
+    Uses Groq's llama-3.1-8b-instant instead of local Ollama.
     '''
     fallacy_list = []
 
+    if _client is None:
+        logger.error("Groq client not initialized.")
+        return fallacy_list
+
     if 'ollama_instructions' not in globals():
-        logger.error("Ollama instructions not initialized.")
+        logger.error("Ollama instructions not loaded.")
         return fallacy_list
 
     if not new_segments:
@@ -44,57 +51,48 @@ async def detect_fallacies(full_transcript, new_segments):
 
     has_content = any(seg.get('transcript', '').strip() for seg in new_segments)
     if not has_content:
-        logger.info("New segments have no speech content, skipping fallacy detection.")
         return fallacy_list
 
-    # full transcript gives the model context for who said what
     full_transcript_str = ""
-    for dialogue in full_transcript:
+    for d in full_transcript:
         try:
-            full_transcript_str += f"{dialogue['speaker']} ({dialogue['start']:.1f}–{dialogue['end']:.1f}s): {dialogue['transcript']}\n"
+            full_transcript_str += f"{d['speaker']} ({d['start']:.1f}–{d['end']:.1f}s): {d['transcript']}\n"
         except KeyError:
-            logger.error(f"Invalid dialogue format: {dialogue}")
+            pass
 
-    # new segments tell the model exactly what to analyze
     new_segments_str = ""
-    for dialogue in new_segments:
+    for d in new_segments:
         try:
-            new_segments_str += f"{dialogue['speaker']} ({dialogue['start']:.1f}–{dialogue['end']:.1f}s): {dialogue['transcript']}\n"
+            new_segments_str += f"{d['speaker']} ({d['start']:.1f}–{d['end']:.1f}s): {d['transcript']}\n"
         except KeyError:
-            logger.error(f"Invalid new segment format: {dialogue}")
+            pass
 
     user_content = (
         f"FULL TRANSCRIPT (for context):\n{full_transcript_str}\n"
         f"ANALYZE ONLY THESE NEW STATEMENTS FOR FALLACIES:\n{new_segments_str}"
     )
 
-    messages = [
-        {'role': 'system', 'content': ollama_instructions},
-        {'role': 'user', 'content': user_content}
-    ]
-
     try:
-        response = ollama.chat(model='llama3.1:8b', messages=messages, options={"temperature": 0})
-        raw = response["message"]["content"]
-        logger.info(f"Ollama raw response: {raw}")
+        response = _client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": ollama_instructions},
+                {"role": "user",   "content": user_content},
+            ],
+            temperature=0,
+        )
+        raw = response.choices[0].message.content
+        logger.info(f"Groq raw response: {raw}")
         json_response = json.loads(raw)
-    except ollama.ResponseError as e:
-        logger.error(f"Ollama error: {e}")
-        return fallacy_list
     except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error — raw response: {response['message']['content']}")
-        logger.error(e)
+        logger.error(f"JSON decode error from Groq: {e} — raw: {raw}")
         return fallacy_list
     except Exception as e:
-        logger.error(f"Unexpected Ollama error: {e}", exc_info=True)
+        logger.error(f"Groq error: {e}", exc_info=True)
         return fallacy_list
 
     if not isinstance(json_response, list):
-        if isinstance(json_response, dict):
-            json_response = [json_response]
-        else:
-            logger.error("Ollama response is not a list or dict")
-            return fallacy_list
+        json_response = [json_response] if isinstance(json_response, dict) else []
 
     for fallacy in json_response:
         if _valid_fallacy(fallacy):
@@ -102,10 +100,8 @@ async def detect_fallacies(full_transcript, new_segments):
 
     return fallacy_list
 
-def _valid_fallacy(fallacy):
+def _valid_fallacy(f):
     return (
-        fallacy is not None
-        and fallacy != ""
-        and isinstance(fallacy, dict)
-        and all(key in fallacy for key in ['speaker', 'fallacy_type', 'statement', 'explanation', 'confidence'])
+        isinstance(f, dict)
+        and all(k in f for k in ['speaker', 'fallacy_type', 'statement', 'explanation', 'confidence'])
     )

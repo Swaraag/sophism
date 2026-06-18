@@ -1,25 +1,20 @@
 import logging
+import numpy as np
 from utils import audio_utils
-from services import whisper_service
-from services import pyannote_service
+from services import assemblyai_service
 
 logger = logging.getLogger("main")
 
-async def audio_to_transcript(pcm_bytes, total_time_processed):
-    '''Takes raw PCM bytes, runs diarization + transcription, returns merged segments.'''
+async def audio_to_transcript(pcm_bytes: bytes, total_time_processed: float) -> list:
+    '''
+    Converts raw Int16 48kHz PCM bytes to a list of transcript segments.
+    Resamples to 16kHz, then sends to AssemblyAI for diarization + transcription.
+    Returns [{speaker, start, end, transcript}] with timestamps offset by total_time_processed.
+    '''
+    # resample to 16kHz mono Int16 PCM for AssemblyAI
+    audio_float = audio_utils.process_audio_bytes(pcm_bytes)          # Float32 16kHz numpy
+    int16_bytes = (audio_float * 32767).astype(np.int16).tobytes()    # back to Int16 bytes
 
-    processed_bytes = audio_utils.process_audio_bytes(pcm_bytes)
-
-    speaker_segs = await pyannote_service.process_audio(processed_bytes)
-    logger.info(f"Pyannote found {len(speaker_segs)} speaker segments: {speaker_segs}")
-
-    final_transcript = []
-    for segment in speaker_segs:
-        start = int(segment["start"] * 16000)
-        end = int(segment["end"] * 16000)
-        segment["transcript"] = await whisper_service.transcribe_audio(processed_bytes[start:end])
-        segment["start"] += total_time_processed
-        segment["end"] += total_time_processed
-        final_transcript.append(segment)
-
-    return final_transcript
+    segments = await assemblyai_service.transcribe_with_diarization(int16_bytes, total_time_processed)
+    logger.info(f"transcript_service got {len(segments)} segments")
+    return segments

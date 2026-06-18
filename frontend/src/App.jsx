@@ -5,7 +5,7 @@ import TranscriptDisplay from './components/TranscriptDisplay'
 import FallacyDisplay from './components/FallacyDisplay'
 
 // 'connecting' | 'connected' | 'disconnected' | 'retrying' | 'failed'
-const WS_URL = 'ws://localhost:8000/ws'
+const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000/ws'
 const MAX_RETRIES = 7
 
 function App() {

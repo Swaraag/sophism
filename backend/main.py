@@ -1,6 +1,5 @@
-from services import pyannote_service
-from services import whisper_service
 from services import ollama_service
+from services import assemblyai_service
 from services import transcript_service
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,9 +13,9 @@ logger = logging.getLogger("main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await pyannote_service.init_pyannote()
-    await whisper_service.init_whisper()
-    await ollama_service.init_ollama()
+    # no local models to load — just validate API keys are present and reachable
+    assemblyai_service.init_assemblyai()
+    ollama_service.init_ollama()
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -42,7 +41,7 @@ async def send_heartbeats(websocket):
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "Sophism backend is running."}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -53,14 +52,12 @@ async def websocket_endpoint(websocket: WebSocket):
     bytes_buffer = bytes()
     transcript = []
     fallacies = []
-    # tracks which statement strings have already been flagged to prevent duplicate fallacies
     seen_fallacy_statements = set()
     last_processed_time = time.time()
     total_time_processed = 0
 
     try:
         await websocket.send_json({"type": "init", "transcript": transcript, "fallacies": fallacies})
-        logger.info("Sent initial state to frontend")
     except Exception as e:
         logger.error(f"Error sending initial state: {e}")
 
@@ -79,24 +76,16 @@ async def websocket_endpoint(websocket: WebSocket):
             if len(bytes_buffer) > 144000 or elapsed_time >= 15:
                 if len(bytes_buffer) > 0:
                     try:
-                        # notify frontend that processing has started
                         await websocket.send_json({"type": "processing"})
 
                         process_start = time.time()
                         new_segments = await transcript_service.audio_to_transcript(bytes_buffer, total_time_processed)
-
-                        transcript_time = time.time() - process_start
-                        logger.info(f"Transcript processing: {transcript_time:.2f}s — {len(new_segments)} new segments")
+                        logger.info(f"Transcription: {time.time() - process_start:.2f}s — {len(new_segments)} segments")
 
                         transcript.extend(new_segments)
 
-                        # only run fallacy detection on new segments, using full transcript for context
-                        fallacy_start = time.time()
                         raw_fallacies = await ollama_service.detect_fallacies(transcript, new_segments)
-                        fallacy_time = time.time() - fallacy_start
-                        logger.info(f"Fallacy detection: {fallacy_time:.2f}s")
 
-                        # deduplicate by statement text — same statement can't be flagged twice
                         new_fallacies = []
                         for f in raw_fallacies:
                             key = f.get("statement", "").strip()
@@ -114,7 +103,6 @@ async def websocket_endpoint(websocket: WebSocket):
                             "transcript": transcript,
                             "fallacies": fallacies,
                         })
-                        logger.info("Sent update to frontend")
 
                     except Exception as e:
                         logger.error(f"Processing error: {e}", exc_info=True)
