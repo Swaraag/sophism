@@ -91,7 +91,14 @@ function App() {
         return
       }
 
-      if (data.type === 'init' || data.type === 'update') {
+      if (data.type === 'init') {
+        // On reconnect the backend sends a fresh empty init — don't wipe existing state
+        setIsProcessing(false)
+        setErrorMessage(null)
+        return
+      }
+
+      if (data.type === 'update') {
         setIsProcessing(false)
         setErrorMessage(null)
         setTranscript(data.transcript)
