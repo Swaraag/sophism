@@ -2,413 +2,203 @@
 
 An AI-powered real-time debate analyzer that detects logical fallacies as people speak.
 
-![Project Status](https://img.shields.io/badge/status-in%20development-yellow)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
-![React](https://img.shields.io/badge/react-19.2-blue)
+![React](https://img.shields.io/badge/react-19-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
+
+> **You're on the `cloud-deploy` branch** — this version uses AssemblyAI + Groq APIs and is deployed to Render + Vercel at zero cost.
+> For the local/offline version (Pyannote + Whisper + Ollama, no external APIs), switch to the [`main`](../../tree/main) branch.
+
+---
+
+## Live Demo
+
+**[sophism.vercel.app](https://sophism.vercel.app)** *(frontend on Vercel, backend on Render)*
+
+---
 
 ## Overview
 
-Sophism captures audio from a live debate, identifies who is speaking, transcribes their words, and uses AI to detect logical fallacies in real-time. The system processes everything locally with no external API costs, making it ideal for educational settings, debate practice, or critical thinking exercises.
+Sophism captures live audio from a debate, identifies who is speaking, transcribes their words, and uses AI to detect logical fallacies in real-time. This branch replaces all local ML models with cloud APIs so it can run on free hosting with near-zero RAM.
 
 **Key Features:**
-- Real-time audio capture and processing
-- Speaker diarization (distinguishes between speakers)
-- Speech-to-text transcription
-- AI-powered fallacy detection
-- Sub-10 second latency
-- Completely local processing (privacy-first)
+- Real-time audio capture and streaming
+- Speaker diarization via AssemblyAI
+- Speech-to-text transcription via AssemblyAI
+- Fallacy detection via Groq (Llama 3.1 8B Instant)
+- ~15 second end-to-end latency
+- Fully hosted — no local setup required for users
 
-## Demo
+---
 
-[Live Demo] *(Coming soon)*
-
-**Example Output:**
-```json
-{
-  "transcript": [
-    {
-      "speaker": "SPEAKER_00",
-      "start": 0.0,
-      "end": 5.0,
-      "transcript": "You can't trust anything John says because he's not even a scientist."
-    }
-  ],
-  "fallacies": [
-    {
-      "speaker": "SPEAKER_00",
-      "fallacy_type": "ad hominem",
-      "statement": "You can't trust anything John says because he's not even a scientist.",
-      "explanation": "Attacks the person's credentials rather than addressing the argument itself.",
-      "confidence": 0.92
-    }
-  ]
-}
-```
-
-## Installation
+## Running Locally (development)
 
 ### Prerequisites
 
 - Python 3.12
 - Node.js 18+
-- FFmpeg
-- Ollama
-- HuggingFace account (free)
+- FFmpeg (`brew install ffmpeg` on macOS)
+- A Groq API key (free at [console.groq.com](https://console.groq.com))
+- An AssemblyAI API key (free at [assemblyai.com](https://www.assemblyai.com))
 
-### Backend Setup
+### Setup
 
-1. **Clone the repository:**
 ```bash
 git clone https://github.com/Swaraag/sophism.git
 cd sophism
+git checkout cloud-deploy
 ```
 
-2. **Install system dependencies:**
-```bash
-# macOS
-brew install ffmpeg portaudio libsndfile
-
-# Ubuntu/Debian
-sudo apt-get install ffmpeg portaudio19-dev libsndfile1
-```
-
-3. **Install and configure Ollama:**
-```bash
-# macOS
-brew install ollama
-
-# Other platforms: https://ollama.com
-
-# Pull the Llama 3.1 model
-ollama pull llama3.1:8b
-```
-
-4. **Configure HuggingFace authentication:**
-```bash
-# Create a .env file in the backend directory
-echo "HF_TOKEN=your_token_here" > backend/.env
-```
-
-Get your token from [HuggingFace Settings](https://huggingface.co/settings/tokens) and accept the [Pyannote terms](https://huggingface.co/pyannote/speaker-diarization-3.1).
-
-5. **Create a Python 3.12 virtual environment and install dependencies:**
+**Backend:**
 ```bash
 cd backend
 python3.12 -m venv sophism-backend-venv
 sophism-backend-venv/bin/pip install -r requirements.txt
 ```
 
-> **Python 3.12 is required.** The `torch==2.3.0` pin in requirements.txt is incompatible with Python 3.13+. On macOS, if `python3.12` is not found, install it with `brew install python@3.12`.
-
-6. **Start the backend:**
-```bash
-sophism-backend-venv/bin/uvicorn main:app --reload --reload-exclude sophism-backend-venv
+Create `backend/.env`:
+```
+GROQ_API_KEY=your_key_here
+ASSEMBLYAI_API_KEY=your_key_here
 ```
 
-> The `--reload-exclude sophism-backend-venv` flag is required. Without it, uvicorn watches the venv directory and restarts in an infinite loop every time pip finishes writing package files.
-
-Backend will be available at `http://localhost:8000`
-
-> **First startup takes 1–2 minutes** — Whisper (`base` model) and the Pyannote speaker-diarization model are downloaded and loaded into memory on first run.
-
-### Frontend Setup
-
-1. **Install Node dependencies:**
+**Frontend:**
 ```bash
 cd frontend
 npm install
 ```
 
-2. **Start the development server:**
+### Running
+
+**Terminal 1 — Backend** (from `backend/`):
+```bash
+sophism-backend-venv/bin/uvicorn main:app --reload
+```
+Starts in ~2 seconds (no local model loading).
+
+**Terminal 2 — Frontend** (from `frontend/`):
 ```bash
 npm run dev
 ```
+Open `http://localhost:5173`.
 
-Frontend will be available at `http://localhost:5173`
+---
 
 ## Usage
 
-1. **Start both servers** (backend and frontend)
-2. **Open the frontend** in your browser
-3. **Click "Start a debate!"** to begin audio capture
-4. **Grant microphone permissions** when prompted
-5. **Speak naturally** - the system processes 5-second chunks
-6. **View results** in real-time as transcript and detected fallacies appear
+1. Open the app and wait for "Connected" status
+2. Click **Start Debate** and grant microphone permissions
+3. Speak — audio is processed in ~5 second chunks, results appear in ~15 seconds
+4. Click **End Debate** to stop recording while keeping results visible
+5. Click **Continue** to resume recording on the same session
+6. Click **Reset** to clear everything and start fresh
 
-**Tips for best results:**
-- Speak clearly with distinct pauses between speakers
-- Minimize background noise
-- Allow 5-10 seconds for processing lag
-- Use headphones to prevent audio feedback
-
+---
 
 ## Architecture
 
-### High-Level Flow
-
 ```
-Microphone → Browser Capture (48kHz Float32)
-                    ↓
-          AudioWorklet Buffering (5 sec chunks)
-                    ↓
-          Format Conversion (Float32 → Int16)
-                    ↓
-          WebSocket Transmission (480KB/5sec)
-                    ↓
-          FastAPI Backend Processing
-                    ↓
-    ┌───────────────┼───────────────┐
-    ↓               ↓               ↓
-Speaker         Speech          Fallacy
-Diarization     Transcription   Detection
-(Pyannote)      (Whisper)       (Llama 3.1)
-    ↓               ↓               ↓
-    └───────────────┴───────────────┘
-                    ↓
-          Merged Results (JSON)
-                    ↓
-          WebSocket Response
-                    ↓
-          React UI Display
+Browser mic (48kHz Float32)
+  → AudioWorkletNode buffers 240,000 samples (~5 sec)
+  → Convert Float32 → Int16 (50% bandwidth reduction)
+  → Binary WebSocket → wss://sophism.onrender.com/ws
+
+FastAPI backend (Render free tier):
+  → Accumulates until >144,000 bytes OR 15 seconds elapsed
+  → audio_utils: Int16 → Float32, resample 48kHz → 16kHz
+  → assemblyai_service: wraps in WAV header, sends to AssemblyAI API
+      → returns [{speaker, start, end, transcript}]
+  → ollama_service (Groq): sends transcript to llama-3.1-8b-instant
+      → returns [{speaker, fallacy_type, statement, explanation, confidence}]
+  → deduplicates fallacies by statement string
+  → WebSocket response: {type: "update", transcript, fallacies, new_segments, new_fallacies}
+
+React frontend (Vercel):
+  → Transcript panel: speaker-colored entries with timestamps, auto-scrolls
+  → Fallacy panel: collapsible cards with confidence scores, inline speaker rename
 ```
 
-### Tech Stack
+---
 
-**Backend:**
-- **FastAPI** - WebSocket server with async support
-- **Pyannote-audio 3.1** - Neural speaker diarization
-- **OpenAI Whisper** - Speech recognition (local inference)
-- **Ollama + Llama 3.1** - Logical fallacy detection
-- **PyTorch 2.3** - Deep learning framework
-- **Librosa** - Audio processing and resampling
+## Tech Stack
 
-**Frontend:**
-- **React 19** - UI framework with hooks
-- **Vite** - Modern build tool
-- **Web Audio API** - Raw PCM audio capture
-- **AudioWorkletNode** - High-performance audio processing
-- **WebSocket** - Real-time bidirectional communication
+**Backend:** FastAPI, AssemblyAI SDK, Groq SDK, Librosa, NumPy
 
-### Audio Pipeline Details
+**Frontend:** React 19, Vite, Web Audio API (AudioWorkletNode), WebSocket
 
-The system uses a sophisticated buffered processing approach optimized for both quality and bandwidth:
+---
 
-| Stage | Format | Sample Rate | Samples | Bytes | Duration |
-|-------|--------|-------------|---------|-------|----------|
-| Browser Capture | Float32 | 48 kHz | 240,000 | 960,000 | 5 sec |
-| After Conversion | Int16 | 48 kHz | 240,000 | 480,000 | 5 sec |
-| WebSocket Send | Int16 | - | - | **480,000** | - |
-| Backend Receive | Int16 | - | - | 480,000 | - |
-| Conversion | Float32 | 48 kHz | 240,000 | 960,000 | 5 sec |
-| After Resample | Float32 | 16 kHz | 80,000 | 320,000 | 5 sec |
-| AI Processing | Float32 | 16 kHz | 80,000 | 320,000 | 5 sec |
+## Deployment
 
-**Key Optimizations:**
-- **50% bandwidth reduction:** Float32 → Int16 conversion before transmission
-- **Industry-standard format:** Int16 PCM is used by Opus, WebRTC, telephony
-- **Minimal quality loss:** 16-bit precision sufficient for speech
-- **Production-ready:** Scalable architecture for deployment
+### Backend → Render (free)
+
+1. render.com → New Web Service → connect `Swaraag/sophism` → branch: `cloud-deploy`
+2. Root directory: `backend`
+3. Build command: `pip install -r requirements.txt`
+4. Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+5. Instance type: Free
+6. Environment variables (set in Render dashboard):
+   - `GROQ_API_KEY`
+   - `ASSEMBLYAI_API_KEY`
+
+### Frontend → Vercel (free)
+
+1. vercel.com → New Project → `Swaraag/sophism` → Root directory: `frontend`
+2. Environment variable: `VITE_WS_URL=wss://sophism.onrender.com/ws`
+3. Deploy
+
+### Keep-warm → UptimeRobot (free)
+
+Render free tier spins down after ~15 min of inactivity (cold start takes ~30s). UptimeRobot pings every 5 min to prevent this.
+
+1. uptimerobot.com → Add Monitor → HTTP/website monitoring
+2. URL: `https://sophism.onrender.com/`
+3. Interval: 5 minutes
+
+---
 
 ## Project Structure
 
 ```
 sophism/
+├── render.yaml                          # Render deployment config
 ├── backend/
+│   ├── main.py                          # FastAPI WebSocket server
+│   ├── requirements.txt                 # fastapi, groq, assemblyai, librosa, numpy
+│   ├── .env                             # gitignored — API keys
 │   ├── services/
-│   │   ├── pyannote_service.py      # Speaker diarization
-│   │   ├── whisper_service.py       # Speech transcription
-│   │   ├── ollama_service.py        # Fallacy detection
-│   │   ├── transcript_service.py    # Service orchestration
-│   │   └── ollama_instructions.txt  # LLM prompt engineering
-│   ├── utils/
-│   │   └── audio_utils.py           # Audio format conversion
-│   ├── main.py                      # FastAPI WebSocket server
-│   └── requirements.txt
-├── frontend/
-│   ├── public/
-│   │   └── audio-processor-worklet.js  # AudioWorklet processor
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── AudioCapture.jsx     # Mic capture & streaming
-│   │   │   ├── TranscriptDisplay.jsx
-│   │   │   └── FallacyDisplay.jsx
-│   │   ├── App.jsx                  # Main component
-│   │   └── main.jsx
-│   └── package.json
-└── README.md
+│   │   ├── assemblyai_service.py        # diarization + transcription via AssemblyAI
+│   │   ├── ollama_service.py            # fallacy detection via Groq
+│   │   ├── transcript_service.py        # pipeline orchestration
+│   │   └── ollama_instructions.txt      # LLM system prompt
+│   └── utils/
+│       └── audio_utils.py               # audio format conversion + resampling
+└── frontend/
+    ├── public/
+    │   └── audio-processor-worklet.js   # AudioWorklet: buffers + converts audio
+    └── src/
+        ├── App.jsx                      # WebSocket logic, state management
+        ├── components/
+        │   ├── AudioCapture.jsx         # mic controls (start/pause/end/continue/reset)
+        │   ├── TranscriptDisplay.jsx    # transcript panel with speaker colors
+        │   └── FallacyDisplay.jsx       # fallacy cards + speaker rename
+        └── App.css                      # dark theme design system
 ```
 
-## Technical Deep Dive
+---
 
-### Why Buffered Processing?
+## Free Tier Limits
 
-Unlike true streaming, Sophism processes audio in 5-second chunks. This approach:
+| Service | Free limit |
+|---|---|
+| AssemblyAI | 100 hours/month transcription |
+| Groq | 14,400 req/day, 500k tokens/day |
+| Render | 750 hours/month |
+| Vercel | 100GB bandwidth/month |
+| UptimeRobot | 50 monitors, 5-min interval |
 
-- **Improves accuracy:** Pyannote performs better with complete audio segments
-- **Provides context:** Speaker transitions are clearer in full chunks
-- **Simplifies architecture:** Easier than continuous streaming
-- **Acceptable latency:** 5-10 seconds is fine for educational use
-
-### Audio Format Conversion Pipeline
-
-**Frontend (AudioWorkletNode):**
-```javascript
-// Capture Float32 audio (native browser format)
-const float32Data = inputBuffer.getChannelData(0);
-
-// Convert to Int16 for transmission (50% bandwidth savings)
-const int16Data = new Int16Array(float32Data.length);
-for (let i = 0; i < float32Data.length; i++) {
-    int16Data[i] = Math.max(-32768, Math.min(32767, float32Data[i] * 32768));
-}
-
-// Send via WebSocket
-websocket.send(int16Data.buffer);
-```
-
-**Backend (audio_utils.py):**
-```python
-def bytes_to_audio_array(pcm_bytes):
-    # Convert Int16 bytes to Float32 numpy array
-    np_audio = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32) / 32768.0
-    return np_audio
-
-def resample_audio(input_audio, orig_sr=48000, target_sr=16000):
-    # Downsample for AI models (16kHz is standard for speech)
-    resampled_audio = librosa.resample(y=input_audio, orig_sr=orig_sr, target_sr=target_sr)
-    return resampled_audio
-```
-
-### Speaker Diarization
-
-Pyannote-audio uses neural networks trained on the VoxCeleb dataset to:
-
-1. **Detect speech activity** - Where is someone speaking?
-2. **Segment speakers** - When do speaker changes occur?
-3. **Cluster voices** - Which segments belong to the same person?
-4. **Label speakers** - Assign consistent speaker IDs
-
-**Model:** `pyannote/speaker-diarization-3.1`
-- **Architecture:** Segmentation + Embedding + Clustering
-- **Runtime:** ~1-2 seconds for 5 seconds of audio (CPU)
-- **Accuracy:** ~90% on VoxCeleb test set
-
-### Fallacy Detection
-
-The system uses Llama 3.1 (8B parameters) via Ollama with a carefully engineered prompt:
-
-**Prompt Strategy:**
-- Temperature 0 for consistency
-- Explicit JSON format requirements
-- Focus on recent statements (last 15-20 seconds)
-- Strict criteria for fallacy identification
-- Confidence scoring for transparency
-
-**Detected Fallacies:**
-- Ad hominem (personal attacks)
-- Straw man (misrepresentation)
-- False dichotomy (false choice)
-- Slippery slope (unjustified extrapolation)
-- Appeal to authority (irrelevant expertise)
-- Hasty generalization (insufficient evidence)
-
-Using a bigger model would improve fallacy accuracy significantly, can be done easily by downloading a bigger model and adding the name in `backend/services/ollama_service.py`
-
-## API Reference
-
-### WebSocket Endpoint
-
-**URL:** `ws://localhost:8000/ws`
-
-**Client → Server (Audio Data):**
-```
-Binary message: Int16 PCM audio (480,000 bytes per 5 seconds)
-```
-
-**Server → Client (Results):**
-```json
-{
-  "transcript": [
-    {
-      "speaker": "SPEAKER_00",
-      "start": 1.043,
-      "end": 5.110,
-      "transcript": "The text of what was said..."
-    }
-  ],
-  "fallacies": [
-    {
-      "speaker": "SPEAKER_00",
-      "fallacy_type": "ad hominem",
-      "statement": "The fallacious statement...",
-      "explanation": "Why it's a fallacy...",
-      "confidence": 0.85
-    }
-  ]
-}
-```
-
-## Current Limitations & Future Work
-
-### Current Limitations
-- **Single microphone only** - Cannot handle separate audio sources yet
-- **Two speakers optimized** - Best results with two-person debates
-- **CPU-only inference** - GPU support would improve speed
-- **English-only** - Whisper and Llama training bias toward English
-
-### Planned Improvements
-- [ ] GPU acceleration for faster processing
-- [ ] Multi-microphone support
-- [ ] Real-time confidence visualization
-- [ ] Historical debate review interface
-- [ ] Export transcripts as PDF/JSON
-- [ ] Custom fallacy definitions
-- [ ] Speaker name customization
-- [ ] Production deployment with WSS (secure WebSocket)
-
-## Performance Metrics
-
-**Latency Breakdown:**
-- Audio buffering: ~5 seconds
-- Speaker diarization: ~1-2 seconds
-- Transcription: ~1-2 seconds
-- Fallacy detection: ~2-3 seconds
-- **Total:** 9-12 seconds from speech to result
-
-**Resource Usage:**
-- RAM: ~4GB (model loading)
-- CPU: ~50% during processing (MacBook Pro M1)
-- Bandwidth: ~96 KB/sec (Int16 streaming)
-- Disk: ~10GB (models + dependencies)
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues or pull requests.
-
-**Areas for contribution:**
-- UI/UX improvements
-- Additional fallacy types
-- Performance optimization
-- Multi-language support
-- Testing and documentation
+---
 
 ## License
 
-MIT License - see LICENSE file for details
-
-## Acknowledgments
-
-- **Pyannote-audio** - Neural speaker diarization
-- **OpenAI Whisper** - Speech recognition
-- **Ollama** - Local LLM inference
-- **FastAPI** - Modern Python web framework
-- **React** - UI framework
-
-## Contact
-
-For questions, suggestions, or collaboration:
-- GitHub Issues: [sophism/issues](https://github.com/Swaraag/sophism/issues)
-- Email: swaraag.sistla@gmail.com
-
----
+MIT
