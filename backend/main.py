@@ -39,7 +39,7 @@ async def send_heartbeats(websocket):
     except Exception:
         pass
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     return {"message": "Sophism backend is running."}
 
